@@ -1,0 +1,98 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: nexus-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nexus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nexus_password}
+      POSTGRES_DB: ${POSTGRES_DB:-nexus_ai}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - nexus_pg_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nexus}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - nexus-net
+
+  # Ollama roda o modelo Qwen3 8B (open source) localmente, sem depender
+  # de nenhuma API paga. Usado quando AI_PROVIDER=ollama no .env.
+  # Qwen3 8B baixa ~5.2GB (Q4_K_M). Recomendado: 16GB de RAM livre para
+  # rodar so em CPU, ou uma GPU com 6-8GB de VRAM para respostas rapidas.
+  # Nao roda de forma pratica no plano free do Render (512MB de RAM).
+  ollama:
+    image: ollama/ollama:latest
+    container_name: nexus-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - nexus_ollama_data:/root/.ollama
+    networks:
+      - nexus-net
+
+  # Baixa o modelo automaticamente na primeira vez que o stack sobe.
+  # Roda uma vez e sai (nao fica consumindo recursos depois). O download
+  # do Qwen3 8B tem ~5.2GB (quantizacao Q4_K_M) - pode demorar alguns
+  # minutos dependendo da sua internet; acompanhe com
+  # `docker compose logs -f ollama-pull-model`.
+  ollama-pull-model:
+    image: ollama/ollama:latest
+    container_name: nexus-ollama-pull
+    depends_on:
+      - ollama
+    entrypoint: ["sh", "-c", "until curl -sf http://ollama:11434/ >/dev/null; do echo 'aguardando o Ollama subir...'; sleep 2; done; OLLAMA_HOST=http://ollama:11434 ollama pull ${AI_MODEL_NAME:-qwen3:8b} && OLLAMA_HOST=http://ollama:11434 ollama pull ${AI_EMBEDDING_MODEL:-nomic-embed-text}"]
+    networks:
+      - nexus-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nexus-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nexus}:${POSTGRES_PASSWORD:-nexus_password}@postgres:5432/${POSTGRES_DB:-nexus_ai}?schema=public
+    ports:
+      - "${PORT:-3333}:3333"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - nexus_uploads:/app/uploads
+    networks:
+      - nexus-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nexus-frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:3333/api/v1}
+      VITE_WS_URL: ${VITE_WS_URL:-ws://localhost:3333/api/v1/ws}
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    networks:
+      - nexus-net
+
+networks:
+  nexus-net:
+    driver: bridge
+
+volumes:
+  nexus_pg_data:
+  nexus_uploads:
+  nexus_ollama_data:

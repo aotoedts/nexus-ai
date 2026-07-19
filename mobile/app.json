@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "Nexus AI",
+    "slug": "nexus-ai",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0a0a12",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a12"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "android": {
+      "package": "ai.nexus.mobile",
+      "versionCode": 1,
+      "edgeToEdgeEnabled": true,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0a0a12"
+      },
+      "permissions": ["INTERNET", "ACCESS_NETWORK_STATE"]
+    },
+    "extra": {
+      "apiUrl": "https://nexus-backend-xu40.onrender.com/api/v1",
+      "wsUrl": "wss://nexus-backend-xu40.onrender.com/api/v1/ws",
+      "eas": {
+        "projectId": "COLOQUE_AQUI_DEPOIS_DE_RODAR_eas_init"
+      }
+    }
+  }
+}
