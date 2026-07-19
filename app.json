@@ -4,6 +4,9 @@
       "eas": {
         "projectId": "997912b4-c75c-4790-93cd-44b311f68e10"
       }
+    },
+    "android": {
+      "package": "com.aotoedts.nexusai"
     }
   }
 }
