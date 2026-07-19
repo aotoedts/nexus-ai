@@ -16,7 +16,7 @@ import { logger } from '../../../config/logger.js';
  * o restante do app conversa apenas com a interface IModelAdapter.
  */
 export class QwenAdapter implements IModelAdapter {
-  readonly providerName = 'qwen';
+  readonly providerName: string = 'qwen';
 
   constructor(
     private baseUrl: string = env.AI_BASE_URL,
