@@ -1,0 +1,64 @@
+name: Build Android APK
+
+# Gera um APK instalavel do Nexus AI automaticamente a cada push na main,
+# ou quando disparado manualmente. Nao exige Android Studio no seu
+# aparelho - basta rodar `git push` (do mesmo jeito que voce ja faz para
+# o deploy no Render) e baixar o .apk gerado na aba "Actions" do GitHub.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/build-android.yml'
+  workflow_dispatch: {}
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      # Aponte para o backend ja publicado (ex: Render). O app nativo
+      # nao consegue acessar "localhost" do seu computador.
+      VITE_API_URL: ${{ vars.VITE_API_URL }}
+      VITE_WS_URL: ${{ vars.VITE_WS_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Instalar dependencias do frontend
+        run: npm install
+
+      - name: Build web (Vite)
+        run: npm run build
+
+      - name: Adicionar plataforma Android (se ainda nao existir)
+        run: |
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+
+      - name: Sincronizar assets nativos
+        run: npx cap sync android
+
+      - name: Build do APK (debug, assinado automaticamente para testes)
+        working-directory: frontend/android
+        run: ./gradlew assembleDebug
+
+      - name: Publicar APK como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-ai-android-debug
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30

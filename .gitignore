@@ -1,0 +1,20 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+*.log
+coverage/
+.DS_Store
+uploads/
+backend/prisma/migrations/dev.db
+*.tsbuildinfo
+.vscode/
+.idea/
+
+# Projetos nativos gerados pelo Capacitor (o workflow de CI recria via
+# `npx cap add android` quando ausente). Se voce customizar o projeto
+# Android/iOS manualmente (ex: assinatura de release), remova estas
+# linhas e comite as pastas.
+frontend/android/
+frontend/ios/

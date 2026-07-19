@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+// ==========================================================
+// USUARIOS & AUTENTICACAO
+// ==========================================================
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  conversations Conversation[]
+  memories      Memory[]
+  documents     Document[]
+  refreshTokens RefreshToken[]
+  logs          AuditLog[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+// ==========================================================
+// CONVERSAS & MENSAGENS (Chat + Historico)
+// ==========================================================
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+model Conversation {
+  id        String   @id @default(uuid())
+  title     String   @default("Nova conversa")
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           MessageRole
+  content        String
+  toolCalls      Json?
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@map("messages")
+}
+
+// ==========================================================
+// MEMORIA DE LONGO PRAZO (embeddings via pgvector)
+// ==========================================================
+
+model Memory {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+  embedding Unsupported("vector(1536)")?
+  kind      String   @default("fact") // fact | preference | event | summary
+  importance Int     @default(1)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("memories")
+}
+
+// ==========================================================
+// DOCUMENTOS (upload + leitura de PDFs + RAG)
+// ==========================================================
+
+enum DocumentStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+model Document {
+  id        String         @id @default(uuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileName  String
+  filePath  String
+  mimeType  String
+  sizeBytes Int
+  status    DocumentStatus @default(PENDING)
+  createdAt DateTime       @default(now())
+
+  chunks DocumentChunk[]
+
+  @@map("documents")
+}
+
+model DocumentChunk {
+  id         String   @id @default(uuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  content    String
+  embedding  Unsupported("vector(1536)")?
+  chunkIndex Int
+  createdAt  DateTime @default(now())
+
+  @@index([documentId])
+  @@map("document_chunks")
+}
+
+// ==========================================================
+// AGENTES & FERRAMENTAS (Tools)
+// ==========================================================
+
+model AgentRun {
+  id             String   @id @default(uuid())
+  conversationId String
+  goal           String
+  steps          Json // lista de passos executados (plan -> tool -> result)
+  status         String   @default("running") // running | completed | failed
+  createdAt      DateTime @default(now())
+  finishedAt     DateTime?
+
+  @@map("agent_runs")
+}
+
+// ==========================================================
+// LOGS / AUDITORIA (painel administrativo)
+// ==========================================================
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  details   Json?
+  level     String   @default("info") // info | warn | error
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("audit_logs")
+}
