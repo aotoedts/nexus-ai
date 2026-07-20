@@ -8,7 +8,7 @@ import { Conversation } from '../types/index.js';
 
 export function Chat() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeId, setActiveId] = useState<string | undefined>(undefined);
+  const [activeId, setActiveIdState] = useState<string | undefined>(   () => localStorage.getItem('nexus_active_conversation') ?? undefined ); const setActiveId = (id: string | undefined) => {   setActiveIdState(id);   if (id) {     localStorage.setItem('nexus_active_conversation', id);   } else {     localStorage.removeItem('nexus_active_conversation');   } };
   const { messages, isSending, streamingContent, sendMessage } = useChat(activeId);
 
   const loadConversations = async () => {

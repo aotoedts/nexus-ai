@@ -14,7 +14,13 @@ export class SaveMemoryUseCase {
   constructor(private memoryRepository: IMemoryRepository, private model: IModelAdapter) {}
 
   async execute(input: SaveMemoryInput): Promise<Memory> {
-    const embedding = await this.model.embed(input.content);
+    let embedding: number[] = [];
+    try {
+      embedding = await this.model.embed(input.content);
+    } catch (err) {
+      // Falha ao gerar embedding - salva a memoria sem ele.
+    }
+
     const memory = Memory.create({
       id: uuid(),
       userId: input.userId,
@@ -24,6 +30,13 @@ export class SaveMemoryUseCase {
       importance: input.importance ?? 1,
       createdAt: new Date(),
     });
+
+    if (embedding.length === 0) {
+      // Sem embedding nao da pra persistir (coluna vector exige dimensao).
+      // Retorna a memoria sem salvar no banco, para nao derrubar a conversa.
+      return memory;
+    }
+
     return this.memoryRepository.save(memory);
   }
 }

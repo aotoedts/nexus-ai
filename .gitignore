@@ -18,3 +18,5 @@ backend/prisma/migrations/dev.db
 # linhas e comite as pastas.
 frontend/android/
 frontend/ios/
+backend/.env.save
+.env

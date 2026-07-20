@@ -31,7 +31,7 @@ export function MessageBubble({ message }: Props) {
       >
         <p className="whitespace-pre-wrap">{message.content}</p>
         <span className="mt-1.5 block font-mono text-[10px] uppercase tracking-wider text-gray-400/70">
-          {new Date(message.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+          {message.createdAt   ? new Date(message.createdAt).toLocaleTimeString('pt-BR', {       hour: '2-digit',       minute: '2-digit',     })   : ''}
         </span>
       </div>
     </div>

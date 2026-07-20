@@ -7,7 +7,13 @@ export class RetrieveRelevantMemoriesUseCase {
   constructor(private memoryRepository: IMemoryRepository, private model: IModelAdapter) {}
 
   async execute(userId: string, query: string, topK = 5): Promise<Memory[]> {
-    const embedding = await this.model.embed(query);
-    return this.memoryRepository.searchSimilar(userId, embedding, topK);
+    try {
+      const embedding = await this.model.embed(query);
+      return this.memoryRepository.searchSimilar(userId, embedding, topK);
+    } catch (err) {
+      // Falha ao gerar embedding (ex: provider sem endpoint de embeddings)
+      // nao deve derrubar a conversa inteira - segue sem memorias.
+      return [];
+    }
   }
 }
