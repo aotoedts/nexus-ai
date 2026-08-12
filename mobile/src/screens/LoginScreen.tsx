@@ -31,7 +31,15 @@ export function LoginScreen() {
       const response = await apiClient.post(endpoint, payload);
       await setAuth(response.data.user, response.data.token, response.data.refreshToken);
     } catch (err: any) {
-      setError(err.response?.data?.error?.message ?? 'Ocorreu um erro. Tente novamente.');
+      const debugInfo = [
+        `Status: ${err?.response?.status ?? 'sem resposta'}`,
+        `URL: ${err?.config?.baseURL ?? ''}${err?.config?.url ?? ''}`,
+        `Data: ${JSON.stringify(err?.response?.data ?? null)}`,
+        `Msg: ${err?.message ?? 'desconhecida'}`,
+      ].join(' | ');
+      const stackInfo = (err?.stack ?? '').toString().slice(0, 400);
+      console.log('=== ERRO LOGIN/REGISTER ===', debugInfo, stackInfo);
+      setError(debugInfo + ' || STACK: ' + stackInfo);
     } finally {
       setLoading(false);
     }

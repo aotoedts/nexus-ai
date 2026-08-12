@@ -16,6 +16,8 @@ export class Conversation {
   get id() { return this.props.id; }
   get title() { return this.props.title; }
   get userId() { return this.props.userId; }
+  get createdAt() { return this.props.createdAt; }
+  get updatedAt() { return this.props.updatedAt; }
 
   renameFrom(firstMessage: string): string {
     const clean = firstMessage.trim().slice(0, 60);

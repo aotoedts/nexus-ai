@@ -11,32 +11,71 @@ interface SettingsState {
   resetToDefault: () => Promise<void>;
 }
 
-const KEYS = { apiUrl: 'nexus_settings_api_url', wsUrl: 'nexus_settings_ws_url' };
+const KEYS = {
+  apiUrl: 'nexus_settings_api_url',
+  wsUrl: 'nexus_settings_ws_url',
+};
 
-/**
- * Permite trocar o backend em tempo de execucao (ex: apontar para um
- * ambiente diferente), sem precisar gerar um novo build do app.
- */
 export const useSettingsStore = create<SettingsState>((set) => ({
+  // Sempre começa usando os valores atuais do config.ts
   apiUrl: DEFAULT_API_URL,
   wsUrl: DEFAULT_WS_URL,
   isHydrated: false,
 
   hydrate: async () => {
-    const [apiUrl, wsUrl] = await Promise.all([
-      AsyncStorage.getItem(KEYS.apiUrl),
-      AsyncStorage.getItem(KEYS.wsUrl),
-    ]);
-    set({ apiUrl: apiUrl ?? DEFAULT_API_URL, wsUrl: wsUrl ?? DEFAULT_WS_URL, isHydrated: true });
+    try {
+      const [savedApiUrl, savedWsUrl] = await Promise.all([
+        AsyncStorage.getItem(KEYS.apiUrl),
+        AsyncStorage.getItem(KEYS.wsUrl),
+      ]);
+
+      // Se houver uma URL antiga salva, ela não será usada.
+      // O app passa a usar a URL definida atualmente em config.ts.
+      set({
+        apiUrl: DEFAULT_API_URL,
+        wsUrl: DEFAULT_WS_URL,
+        isHydrated: true,
+      });
+
+      // Remove configurações antigas salvas no aparelho
+      if (savedApiUrl || savedWsUrl) {
+        await Promise.all([
+          AsyncStorage.removeItem(KEYS.apiUrl),
+          AsyncStorage.removeItem(KEYS.wsUrl),
+        ]);
+      }
+    } catch (error) {
+      console.warn('Erro ao carregar configurações:', error);
+
+      set({
+        apiUrl: DEFAULT_API_URL,
+        wsUrl: DEFAULT_WS_URL,
+        isHydrated: true,
+      });
+    }
   },
 
   setUrls: async (apiUrl, wsUrl) => {
-    await Promise.all([AsyncStorage.setItem(KEYS.apiUrl, apiUrl), AsyncStorage.setItem(KEYS.wsUrl, wsUrl)]);
-    set({ apiUrl, wsUrl });
+    await Promise.all([
+      AsyncStorage.setItem(KEYS.apiUrl, apiUrl),
+      AsyncStorage.setItem(KEYS.wsUrl, wsUrl),
+    ]);
+
+    set({
+      apiUrl,
+      wsUrl,
+    });
   },
 
   resetToDefault: async () => {
-    await Promise.all([AsyncStorage.removeItem(KEYS.apiUrl), AsyncStorage.removeItem(KEYS.wsUrl)]);
-    set({ apiUrl: DEFAULT_API_URL, wsUrl: DEFAULT_WS_URL });
+    await Promise.all([
+      AsyncStorage.removeItem(KEYS.apiUrl),
+      AsyncStorage.removeItem(KEYS.wsUrl),
+    ]);
+
+    set({
+      apiUrl: DEFAULT_API_URL,
+      wsUrl: DEFAULT_WS_URL,
+    });
   },
 }));

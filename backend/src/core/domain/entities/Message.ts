@@ -24,4 +24,5 @@ export class Message {
   get role() { return this.props.role; }
   get content() { return this.props.content; }
   get conversationId() { return this.props.conversationId; }
+  get createdAt() { return this.props.createdAt; }
 }
