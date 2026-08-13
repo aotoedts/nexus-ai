@@ -24,28 +24,28 @@ export async function chatRoutes(app: FastifyInstance, opts: { model: IModelAdap
 
   // Navegadores nao permitem headers customizados no handshake do
   // WebSocket, entao o JWT vem via query string e e verificado manualmente.
-  app.get('/ws/chat', { websocket: true }, (connection, request) => {
+  app.get('/ws/chat', { websocket: true }, (socket, request) => {
     const { token } = z.object({ token: z.string() }).parse(request.query);
     let user: JwtPayload;
     try {
       user = app.jwt.verify<JwtPayload>(token);
     } catch {
-      connection.socket.send(JSON.stringify({ type: 'error', message: 'Token invalido ou expirado' }));
-      connection.socket.close();
+      socket.send(JSON.stringify({ type: 'error', message: 'Token invalido ou expirado' }));
+      socket.close();
       return;
     }
 
-    connection.socket.on('message', async (raw: Buffer) => {
+    socket.on('message', async (raw: Buffer) => {
       try {
         const payload = sendMessageSchema.parse(JSON.parse(raw.toString()));
         const result = await sendMessage.execute({
           userId: user.sub,
           ...payload,
-          onToken: (token) => connection.socket.send(JSON.stringify({ type: 'token', token })),
+          onToken: (token) => socket.send(JSON.stringify({ type: 'token', token })),
         });
-        connection.socket.send(JSON.stringify({ type: 'done', conversationId: result.conversationId, message: result.assistantMessage.content }));
+        socket.send(JSON.stringify({ type: 'done', conversationId: result.conversationId, message: result.assistantMessage.content }));
       } catch (err) {
-        connection.socket.send(JSON.stringify({ type: 'error', message: (err as Error).message }));
+        socket.send(JSON.stringify({ type: 'error', message: (err as Error).message }));
       }
     });
   });
