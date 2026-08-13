@@ -20,15 +20,26 @@ export class QwenAdapter implements IModelAdapter {
     private modelName: string = env.AI_MODEL_NAME,
   ) {}
 
+  private fallbackModels: string[] = [
+    'google/gemma-4-31b-it:free',
+    'google/gemma-4-26b-a4b-it:free',
+    'qwen/qwen2.5-vl-32b-instruct:free',
+  ];
+
   async complete(
     messages: ChatMessageInput[],
     options: CompletionOptions = {},
+    attempt = 0,
   ): Promise<CompletionResult> {
+    const modelToUse = attempt === 0 ? this.modelName : this.fallbackModels[attempt - 1];
+    if (!modelToUse) {
+      throw new Error('QwenAdapter: todos os modelos falharam (rate limit ou indisponiveis)');
+    }
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: this.headers(),
       body: JSON.stringify({
-        model: this.modelName,
+        model: modelToUse,
         messages,
         temperature: options.temperature ?? 0.7,
         max_tokens: options.maxTokens ?? 1024,
@@ -41,6 +52,10 @@ export class QwenAdapter implements IModelAdapter {
 
     if (!response.ok) {
       const errText = await response.text();
+      if (response.status === 429 && attempt < this.fallbackModels.length) {
+        logger.warn({ modelToUse, attempt }, 'Modelo com rate limit, tentando fallback');
+        return this.complete(messages, options, attempt + 1);
+      }
       logger.error({ errText }, 'Falha ao chamar o servidor Qwen');
       throw new Error(`QwenAdapter: falha na chamada (${response.status})`);
     }
