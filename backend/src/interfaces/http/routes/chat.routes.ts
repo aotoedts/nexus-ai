@@ -8,7 +8,15 @@ import { RetrieveRelevantMemoriesUseCase } from '../../../core/application/use-c
 import { IModelAdapter } from '../../../core/infrastructure/ai/IModelAdapter.js';
 import { JwtPayload } from '../plugins/auth.plugin.js';
 
-const sendMessageSchema = z.object({ conversationId: z.string().uuid().optional(), content: z.string().min(1) });
+const sendMessageSchema = z
+  .object({
+    conversationId: z.string().uuid().optional(),
+    content: z.string().default(''),
+    images: z.array(z.string()).max(4).optional(),
+  })
+  .refine((data) => data.content.trim().length > 0 || (data.images && data.images.length > 0), {
+    message: 'Envie um texto ou pelo menos uma imagem',
+  });
 
 export async function chatRoutes(app: FastifyInstance, opts: { model: IModelAdapter }) {
   const conversationRepository = new PrismaConversationRepository();

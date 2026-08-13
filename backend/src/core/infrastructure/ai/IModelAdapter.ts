@@ -1,6 +1,12 @@
+export interface ChatMessageContentPart {
+  type: 'text' | 'image_url';
+  text?: string;
+  image_url?: { url: string };
+}
+
 export interface ChatMessageInput {
   role: 'user' | 'assistant' | 'system' | 'tool';
-  content: string;
+  content: string | ChatMessageContentPart[];
 }
 
 export interface ToolDefinition {

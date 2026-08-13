@@ -8,4 +8,4 @@ import Constants from 'expo-constants';
 const extra = Constants.expoConfig?.extra ?? {};
 
 export const API_URL: string = extra.apiUrl ?? 'https://nexus-backend-xu40.onrender.com/api/v1';
-export const WS_URL: string = extra.wsUrl ?? 'ws://localhost:3333/api/v1/ws';
+export const WS_URL: string = extra.wsUrl ?? 'wss://nexus-backend-xu40.onrender.com/api/v1/ws';

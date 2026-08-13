@@ -44,7 +44,7 @@ export function useChat(conversationId: string | undefined) {
   }, [token, wsUrl]);
 
   const sendViaWebSocket = useCallback(
-    (content: string, currentConversationId: string | undefined) =>
+    (content: string, currentConversationId: string | undefined, images?: string[]) =>
       new Promise<{ conversationId: string; content: string }>((resolve, reject) => {
         const socket = wsRef.current;
         if (!socket || socket.readyState !== WebSocket.OPEN) { reject(new Error('WebSocket indisponivel')); return; }
@@ -56,23 +56,23 @@ export function useChat(conversationId: string | undefined) {
           else if (data.type === 'error') { socket.removeEventListener('message', handleMessage); reject(new Error(data.message)); }
         };
         socket.addEventListener('message', handleMessage);
-        socket.send(JSON.stringify({ conversationId: currentConversationId, content }));
+        socket.send(JSON.stringify({ conversationId: currentConversationId, content, images }));
       }),
     [],
   );
 
   const sendMessage = useCallback(
-    async (content: string, currentConversationId?: string) => {
+    async (content: string, currentConversationId?: string, images?: string[]) => {
       setIsSending(true);
       setStreamingContent('');
       const optimisticMessage: ChatMessage = { id: `temp-${Date.now()}`, conversationId: currentConversationId ?? '', role: 'USER', content, createdAt: new Date().toISOString() };
       setMessages((prev) => [...prev, optimisticMessage]);
       try {
-        const result = await sendViaWebSocket(content, currentConversationId);
+        const result = await sendViaWebSocket(content, currentConversationId, images);
         setMessages((prev) => [...prev, { id: `assistant-${Date.now()}`, conversationId: result.conversationId, role: 'ASSISTANT', content: result.content, createdAt: new Date().toISOString() }]);
         return result.conversationId;
       } catch {
-        const response = await apiClient.post('/chat/messages', { conversationId: currentConversationId, content });
+        const response = await apiClient.post('/chat/messages', { conversationId: currentConversationId, content, images });
         setMessages((prev) => [...prev, response.data.assistantMessage]);
         return response.data.conversationId as string;
       } finally {

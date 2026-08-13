@@ -70,8 +70,8 @@ export function ChatScreen() {
     }
   }, [messages, streamingContent]);
 
-  const handleSend = async (content: string) => {
-    const newConversationId = await sendMessage(content, conversationId);
+  const handleSend = async (content: string, images?: string[]) => {
+    const newConversationId = await sendMessage(content, conversationId, images);
     if (!conversationId && newConversationId) {
       setConversationId(newConversationId);
       // Renomeia a conversa com base na primeira mensagem, sem bloquear a UI.
@@ -84,7 +84,7 @@ export function ChatScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       {messages.length === 0 && !isLoadingHistory ? (

@@ -11,6 +11,7 @@ export interface SendMessageInput {
   userId: string;
   conversationId?: string;
   content: string;
+  images?: string[];
   onToken?: (token: string) => void;
 }
 
@@ -71,7 +72,19 @@ export class SendMessageUseCase {
           (memoryContext ? `\n${memoryContext}` : ''),
       },
       ...history.map((m) => ({ role: m.role.toLowerCase() as any, content: m.content })),
-      { role: 'user', content: input.content },
+      {
+        role: 'user',
+        content:
+          input.images && input.images.length
+            ? [
+                { type: 'text' as const, text: input.content },
+                ...input.images.map((img) => ({
+                  type: 'image_url' as const,
+                  image_url: { url: img },
+                })),
+              ]
+            : input.content,
+      },
     ];
 
     const result = input.onToken
