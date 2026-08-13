@@ -19,6 +19,16 @@ export class Conversation {
   get createdAt() { return this.props.createdAt; }
   get updatedAt() { return this.props.updatedAt; }
 
+  toJSON() {
+    return {
+      id: this.props.id,
+      title: this.props.title,
+      userId: this.props.userId,
+      createdAt: this.props.createdAt,
+      updatedAt: this.props.updatedAt,
+    };
+  }
+
   renameFrom(firstMessage: string): string {
     const clean = firstMessage.trim().slice(0, 60);
     return clean.length > 0 ? clean : this.props.title;

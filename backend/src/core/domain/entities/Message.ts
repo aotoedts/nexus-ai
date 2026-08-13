@@ -25,4 +25,16 @@ export class Message {
   get content() { return this.props.content; }
   get conversationId() { return this.props.conversationId; }
   get createdAt() { return this.props.createdAt; }
+
+  toJSON() {
+    return {
+      id: this.props.id,
+      conversationId: this.props.conversationId,
+      role: this.props.role,
+      content: this.props.content,
+      toolCalls: this.props.toolCalls,
+      metadata: this.props.metadata,
+      createdAt: this.props.createdAt,
+    };
+  }
 }
