@@ -21,9 +21,9 @@ export class QwenAdapter implements IModelAdapter {
   ) {}
 
   private fallbackModels: string[] = [
-    'google/gemma-4-31b-it:free',
     'google/gemma-4-26b-a4b-it:free',
-    'qwen/qwen2.5-vl-32b-instruct:free',
+    'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+    'openrouter/free',
   ];
 
   async complete(
