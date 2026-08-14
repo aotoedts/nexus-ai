@@ -25,6 +25,7 @@ model User {
   email        String   @unique
   passwordHash String
   role         Role     @default(USER)
+  agentEnabled Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -33,6 +34,7 @@ model User {
   documents     Document[]
   refreshTokens RefreshToken[]
   logs          AuditLog[]
+  agentRuns     AgentRun[]
 
   @@map("users")
 }
@@ -148,15 +150,29 @@ model DocumentChunk {
 // AGENTES & FERRAMENTAS (Tools)
 // ==========================================================
 
+enum AgentRunStatus {
+  PLANNING
+  AWAITING_AUTHORIZATION
+  EXECUTING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
 model AgentRun {
-  id             String   @id @default(uuid())
-  conversationId String
+  id             String         @id @default(uuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId String // conversa dedicada desta execucao, reutiliza Message/Conversation ja existentes
   goal           String
-  steps          Json // lista de passos executados (plan -> tool -> result)
-  status         String   @default("running") // running | completed | failed
-  createdAt      DateTime @default(now())
+  steps          Json // historico estruturado: [{ index, description, toolName?, arguments?, result?, status }]
+  currentStepIndex Int          @default(0)
+  status         AgentRunStatus @default(PLANNING)
+  pendingAction  Json? // acao aguardando autorizacao explicita: { toolName, arguments, description }
+  createdAt      DateTime       @default(now())
   finishedAt     DateTime?
 
+  @@index([userId])
   @@map("agent_runs")
 }
 

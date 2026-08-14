@@ -30,6 +30,8 @@ const envSchema = z.object({
   AI_EMBEDDING_MODEL: z.string().default('text-embedding-nexus'),
   ANTHROPIC_API_KEY: z.string().default(''),
   ANTHROPIC_MODEL_NAME: z.string().default('claude-sonnet-5'),
+  AGENT_WORKSPACE_DIR: z.string().default('/tmp/agent-workspace'),
+  AGENT_REPO_URL: z.string().default(''),
   AI_EMBEDDING_DIM: z.coerce.number().default(1536),
 
   WEB_SEARCH_PROVIDER: z.enum(['mock', 'tavily', 'serpapi']).default('mock'),
