@@ -3,6 +3,7 @@ import { QwenAdapter } from './QwenAdapter.js';
 import { OpenAICompatibleAdapter } from './OpenAICompatibleAdapter.js';
 import { OllamaAdapter } from './OllamaAdapter.js';
 import { MockAdapter } from './MockAdapter.js';
+import { AnthropicAdapter } from './AnthropicAdapter.js';
 import { env } from '../../../config/env.js';
 
 /**
@@ -19,6 +20,8 @@ export function createModelAdapter(): IModelAdapter {
       return new OpenAICompatibleAdapter();
     case 'ollama':
       return new OllamaAdapter();
+    case 'anthropic':
+      return new AnthropicAdapter();
     case 'mock':
     default:
       return new MockAdapter();

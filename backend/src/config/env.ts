@@ -23,11 +23,13 @@ const envSchema = z.object({
   REFRESH_TOKEN_SECRET: z.string().min(8),
   REFRESH_TOKEN_EXPIRES_IN: z.string().default('30d'),
 
-  AI_PROVIDER: z.enum(['qwen', 'openai_compatible', 'ollama', 'mock']).default('mock'),
+  AI_PROVIDER: z.enum(['qwen', 'openai_compatible', 'ollama', 'mock', 'anthropic']).default('mock'),
   AI_MODEL_NAME: z.string().default('qwen3:8b'),
   AI_BASE_URL: z.string().default('http://localhost:11434/v1'),
   AI_API_KEY: z.string().default(''),
   AI_EMBEDDING_MODEL: z.string().default('text-embedding-nexus'),
+  ANTHROPIC_API_KEY: z.string().default(''),
+  ANTHROPIC_MODEL_NAME: z.string().default('claude-sonnet-5'),
   AI_EMBEDDING_DIM: z.coerce.number().default(1536),
 
   WEB_SEARCH_PROVIDER: z.enum(['mock', 'tavily', 'serpapi']).default('mock'),
