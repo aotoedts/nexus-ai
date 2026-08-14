@@ -95,7 +95,7 @@ model Memory {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   content   String
-  embedding Unsupported("vector(1536)")?
+  embedding Unsupported("vector(2048)")?
   kind      String   @default("fact") // fact | preference | event | summary
   importance Int     @default(1)
   createdAt DateTime @default(now())
@@ -136,7 +136,7 @@ model DocumentChunk {
   documentId String
   document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   content    String
-  embedding  Unsupported("vector(1536)")?
+  embedding  Unsupported("vector(2048)")?
   chunkIndex Int
   createdAt  DateTime @default(now())
 
