@@ -44,7 +44,7 @@ export function useChat(conversationId: string | undefined) {
   }, [token, wsUrl]);
 
   const sendViaWebSocket = useCallback(
-    (content: string, currentConversationId: string | undefined, images?: string[]) =>
+    (content: string, currentConversationId: string | undefined, images?: string[], _files?: unknown[]) =>
       new Promise<{ conversationId: string; content: string }>((resolve, reject) => {
         const socket = wsRef.current;
         if (!socket || socket.readyState !== WebSocket.OPEN) { reject(new Error('WebSocket indisponivel')); return; }
@@ -62,7 +62,7 @@ export function useChat(conversationId: string | undefined) {
   );
 
   const sendMessage = useCallback(
-    async (content: string, currentConversationId?: string, images?: string[]) => {
+    async (content: string, currentConversationId?: string, images?: string[], _files?: unknown[]) => {
       setIsSending(true);
       setStreamingContent('');
       const optimisticMessage: ChatMessage = { id: `temp-${Date.now()}`, conversationId: currentConversationId ?? '', role: 'USER', content, createdAt: new Date().toISOString() };

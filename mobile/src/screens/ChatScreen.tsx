@@ -15,6 +15,8 @@ import { colors } from '../theme/colors';
 import { useChat, ChatMessage } from '../hooks/useChat';
 import { MessageBubble } from '../components/MessageBubble';
 import { ChatInputBar } from '../components/ChatInputBar';
+import { HistoryDrawer } from '../components/HistoryDrawer';
+import { ProfileMenu } from '../components/ProfileMenu';
 import { apiClient } from '../api/client';
 import { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -32,6 +34,8 @@ export function ChatScreen() {
   const [conversationId, setConversationId] = useState<string | undefined>(
     route.params?.conversationId,
   );
+  const [historyVisible, setHistoryVisible] = useState(false);
+  const [profileMenuVisible, setProfileMenuVisible] = useState(false);
   const { messages, isSending, streamingContent, isLoadingHistory, sendMessage } =
     useChat(conversationId);
   const listRef = useRef<FlatList<ChatMessage>>(null);
@@ -42,23 +46,14 @@ export function ChatScreen() {
 
   useEffect(() => {
     navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Conversations')}
-          style={{ marginRight: 12 }}
-        >
-          <Ionicons name="time-outline" size={22} color={colors.text.primary} />
+      headerLeft: () => (
+        <TouchableOpacity onPress={() => setHistoryVisible(true)} style={{ marginLeft: 12 }}>
+          <Ionicons name="menu-outline" size={24} color={colors.text.primary} />
         </TouchableOpacity>
       ),
-      headerLeft: () => (
-        <TouchableOpacity
-          onPress={() => {
-            setConversationId(undefined);
-            navigation.setParams({ conversationId: undefined });
-          }}
-          style={{ marginLeft: 12 }}
-        >
-          <Ionicons name="add-circle-outline" size={22} color={colors.text.primary} />
+      headerRight: () => (
+        <TouchableOpacity onPress={() => setProfileMenuVisible(true)} style={{ marginRight: 12 }}>
+          <Ionicons name="person-circle-outline" size={26} color={colors.text.primary} />
         </TouchableOpacity>
       ),
     });
@@ -70,8 +65,8 @@ export function ChatScreen() {
     }
   }, [messages, streamingContent]);
 
-  const handleSend = async (content: string, images?: string[]) => {
-    const newConversationId = await sendMessage(content, conversationId, images);
+  const handleSend = async (content: string, images?: string[], files?: unknown[]) => {
+    const newConversationId = await sendMessage(content, conversationId, images, files);
     if (!conversationId && newConversationId) {
       setConversationId(newConversationId);
       // Renomeia a conversa com base na primeira mensagem, sem bloquear a UI.
@@ -82,6 +77,7 @@ export function ChatScreen() {
   };
 
   return (
+    <>
     <KeyboardAvoidingView
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -114,6 +110,29 @@ export function ChatScreen() {
 
       <ChatInputBar onSend={handleSend} disabled={isSending} />
     </KeyboardAvoidingView>
+    <HistoryDrawer
+      visible={historyVisible}
+      onClose={() => setHistoryVisible(false)}
+      onSelectConversation={(id) => {
+        setConversationId(id);
+        navigation.setParams({ conversationId: id });
+        setHistoryVisible(false);
+      }}
+      onNewConversation={() => {
+        setConversationId(undefined);
+        navigation.setParams({ conversationId: undefined });
+        setHistoryVisible(false);
+      }}
+    />
+    <ProfileMenu
+      visible={profileMenuVisible}
+      onClose={() => setProfileMenuVisible(false)}
+      onSettings={() => {
+        setProfileMenuVisible(false);
+        navigation.navigate('Settings');
+      }}
+    />
+    </>
   );
 }
 

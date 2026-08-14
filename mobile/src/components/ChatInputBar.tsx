@@ -1,17 +1,26 @@
 import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, Image, ScrollView } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, Image, ScrollView, Text, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { colors } from '../theme/colors';
+import { apiClient } from '../api/client';
+
+interface FileAttachment {
+  name: string;
+  documentId: string;
+}
 
 interface Props {
-  onSend: (content: string, images?: string[]) => void;
+  onSend: (content: string, images?: string[], files?: FileAttachment[]) => void;
   disabled?: boolean;
 }
 
 export function ChatInputBar({ onSend, disabled }: Props) {
   const [value, setValue] = useState('');
   const [images, setImages] = useState<string[]>([]);
+  const [files, setFiles] = useState<FileAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const pickImage = async () => {
     if (images.length >= 4) return;
@@ -33,37 +42,88 @@ export function ChatInputBar({ onSend, disabled }: Props) {
     setImages((prev) => [...prev, ...newImages].slice(0, 4));
   };
 
-  const removeImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
+  const pickFile = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['video/*', 'application/pdf', 'text/*', 'application/*'],
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', {
+        uri: asset.uri,
+        name: asset.name,
+        type: asset.mimeType ?? 'application/octet-stream',
+      } as any);
+      const { data } = await apiClient.post('/documents/upload', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setFiles((prev) => [...prev, { name: asset.name, documentId: data.document.id }]);
+    } catch {
+      Alert.alert('Erro', 'Não foi possível enviar o arquivo.');
+    } finally {
+      setUploading(false);
+    }
   };
+
+  const handleAttachPress = () => {
+    Alert.alert('Anexar', 'O que você quer enviar?', [
+      { text: 'Foto', onPress: pickImage },
+      { text: 'Vídeo ou arquivo', onPress: pickFile },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  };
+
+  const removeImage = (index: number) => setImages((prev) => prev.filter((_, i) => i !== index));
+  const removeFile = (index: number) => setFiles((prev) => prev.filter((_, i) => i !== index));
 
   const handleSend = () => {
     const trimmed = value.trim();
-    if ((!trimmed && images.length === 0) || disabled) return;
-    onSend(trimmed, images.length ? images : undefined);
+    if ((!trimmed && images.length === 0 && files.length === 0) || disabled || uploading) return;
+    const fileNote = files.length ? files.map((f) => `[Anexo: ${f.name}]`).join(' ') : '';
+    const finalContent = [trimmed, fileNote].filter(Boolean).join(' ');
+    onSend(finalContent, images.length ? images : undefined, files.length ? files : undefined);
     setValue('');
     setImages([]);
+    setFiles([]);
   };
 
-  const canSend = (value.trim().length > 0 || images.length > 0) && !disabled;
+  const canSend = (value.trim().length > 0 || images.length > 0 || files.length > 0) && !disabled && !uploading;
 
   return (
     <View>
-      {images.length > 0 && (
+      {(images.length > 0 || files.length > 0) && (
         <ScrollView horizontal style={styles.previewRow} showsHorizontalScrollIndicator={false}>
           {images.map((img, i) => (
-            <View key={i} style={styles.previewItem}>
+            <View key={`img-${i}`} style={styles.previewItem}>
               <Image source={{ uri: img }} style={styles.previewImage} />
               <TouchableOpacity style={styles.removeBadge} onPress={() => removeImage(i)}>
                 <Ionicons name="close" size={12} color={colors.white} />
               </TouchableOpacity>
             </View>
           ))}
+          {files.map((f, i) => (
+            <View key={`file-${i}`} style={styles.fileChip}>
+              <Ionicons name="document-attach-outline" size={14} color={colors.text.primary} />
+              <Text style={styles.fileChipText} numberOfLines={1}>{f.name}</Text>
+              <TouchableOpacity onPress={() => removeFile(i)}>
+                <Ionicons name="close" size={13} color={colors.text.muted} />
+              </TouchableOpacity>
+            </View>
+          ))}
         </ScrollView>
       )}
       <View style={styles.container}>
-        <TouchableOpacity onPress={pickImage} disabled={disabled} style={styles.attachButton}>
-          <Ionicons name="add-circle-outline" size={26} color={colors.text.muted} />
+        <TouchableOpacity onPress={handleAttachPress} disabled={disabled || uploading} style={styles.attachButton}>
+          {uploading ? (
+            <ActivityIndicator size="small" color={colors.text.muted} />
+          ) : (
+            <Ionicons name="add-circle-outline" size={26} color={colors.text.muted} />
+          )}
         </TouchableOpacity>
         <TextInput
           value={value}
@@ -96,4 +156,6 @@ const styles = StyleSheet.create({
   previewItem: { marginRight: 8, position: 'relative' },
   previewImage: { width: 56, height: 56, borderRadius: 10 },
   removeBadge: { position: 'absolute', top: -4, right: -4, backgroundColor: colors.ink[700], borderRadius: 8, width: 16, height: 16, alignItems: 'center', justifyContent: 'center' },
+  fileChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.ink[900], borderWidth: 1, borderColor: colors.ink[700], borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginRight: 8, maxWidth: 160 },
+  fileChipText: { color: colors.text.primary, fontSize: 12, flexShrink: 1 },
 });
