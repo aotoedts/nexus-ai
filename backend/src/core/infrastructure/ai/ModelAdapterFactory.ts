@@ -4,12 +4,14 @@ import { OpenAICompatibleAdapter } from './OpenAICompatibleAdapter.js';
 import { OllamaAdapter } from './OllamaAdapter.js';
 import { MockAdapter } from './MockAdapter.js';
 import { AnthropicAdapter } from './AnthropicAdapter.js';
+import { OpenRouterAdapter } from './OpenRouterAdapter.js';
 import { env } from '../../../config/env.js';
 
 /**
- * Factory central que decide, com base em AI_PROVIDER, qual implementacao
- * de IModelAdapter injetar no restante da aplicacao. Trocar de modelo de
- * IA no futuro significa apenas adicionar uma nova classe aqui, sem
+ * Factory central que decide, com base em AI_PROVIDER, qual
+ * de IModelAdapter injetar no restante da aplicacao. Trocar
+ * de modelo de IA no futuro significa apenas adicionar uma nova classe a
+ * qui, sem
  * tocar em use-cases ou rotas.
  */
 export function createModelAdapter(): IModelAdapter {
@@ -22,6 +24,8 @@ export function createModelAdapter(): IModelAdapter {
       return new OllamaAdapter();
     case 'anthropic':
       return new AnthropicAdapter();
+    case 'openrouter':
+      return new OpenRouterAdapter(env.OPENROUTER_API_KEY, 'openai/gpt-4-turbo');
     case 'mock':
     default:
       return new MockAdapter();
