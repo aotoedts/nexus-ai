@@ -1,20 +1,23 @@
-import { IModelAdapter, StreamOptions, ToolDefinition } from './IModelAdapter';
+import {
+  IModelAdapter,
+  ChatMessageInput,
+  CompletionOptions,
+  CompletionResult,
+} from './IModelAdapter.js';
 
-interface OpenRouterMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-interface OpenRouterTool {
-  type: 'function';
-  function: {
-    name: string;
-    description: string;
-    parameters: Record<string, any>;
+interface OpenRouterResponse {
+  choices: Array<{
+    message?: { content: string };
+    delta?: { content?: string };
+  }>;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
   };
 }
 
 export class OpenRouterAdapter implements IModelAdapter {
+  readonly providerName = 'OpenRouter';
   private apiKey: string;
   private baseURL = 'https://openrouter.ai/api/v1';
   private modelName: string;
@@ -28,10 +31,15 @@ export class OpenRouterAdapter implements IModelAdapter {
   }
 
   async complete(
-    messages: Array<{ role: 'user' | 'assistant'; content: string }>,
-    options?: StreamOptions
-  ): Promise<string> {
+    messages: ChatMessageInput[],
+    options?: CompletionOptions
+  ): Promise<CompletionResult> {
     try {
+      const formattedMessages = messages.map((msg) => ({
+        role: msg.role,
+        content: typeof msg.content === 'string' ? msg.content : msg.content[0]?.text || '',
+      }));
+
       const response = await fetch(`${this.baseURL}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -42,30 +50,47 @@ export class OpenRouterAdapter implements IModelAdapter {
         },
         body: JSON.stringify({
           model: this.modelName,
-          messages,
+          messages: formattedMessages,
           max_tokens: options?.maxTokens || 1024,
           temperature: options?.temperature ?? 0.7,
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`OpenRouter API error: ${response.status} - ${errorData}`);
+        const errorText = await response.text();
+        throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
       }
 
-      const data = await response.json();
-      return data.choices[0]?.message?.content || '';
+      const data = (await response.json()) as OpenRouterResponse;
+      const content = data.choices[0]?.message?.content || '';
+
+      return {
+        content,
+        toolCalls: [],
+        finishReason: 'stop',
+        usage: {
+          promptTokens: data.usage?.prompt_tokens || 0,
+          completionTokens: data.usage?.completion_tokens || 0,
+        },
+      };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`OpenRouterAdapter: ${errorMessage}`);
+      throw new Error(
+        `OpenRouterAdapter.complete: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
-  async *streamComplete(
-    messages: Array<{ role: 'user' | 'assistant'; content: string }>,
-    options?: StreamOptions
-  ): AsyncGenerator<string> {
+  async stream(
+    messages: ChatMessageInput[],
+    onToken: (token: string) => void,
+    options?: CompletionOptions
+  ): Promise<CompletionResult> {
     try {
+      const formattedMessages = messages.map((msg) => ({
+        role: msg.role,
+        content: typeof msg.content === 'string' ? msg.content : msg.content[0]?.text || '',
+      }));
+
       const response = await fetch(`${this.baseURL}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -76,7 +101,7 @@ export class OpenRouterAdapter implements IModelAdapter {
         },
         body: JSON.stringify({
           model: this.modelName,
-          messages,
+          messages: formattedMessages,
           stream: true,
           max_tokens: options?.maxTokens || 1024,
           temperature: options?.temperature ?? 0.7,
@@ -92,6 +117,9 @@ export class OpenRouterAdapter implements IModelAdapter {
 
       const decoder = new TextDecoder();
       let buffer = '';
+      let totalContent = '';
+      let promptTokens = 0;
+      let completionTokens = 0;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -107,46 +135,41 @@ export class OpenRouterAdapter implements IModelAdapter {
           if (data === '[DONE]') continue;
 
           try {
-            const json = JSON.parse(data);
-            const content = json.choices?.[0]?.delta?.content || '';
-            if (content) yield content;
+            const json = JSON.parse(data) as OpenRouterResponse;
+            const token = json.choices[0]?.delta?.content || '';
+            if (token) {
+              totalContent += token;
+              onToken(token);
+            }
+            if (json.usage) {
+              promptTokens = json.usage.prompt_tokens;
+              completionTokens = json.usage.completion_tokens;
+            }
           } catch {
             // Ignore parse errors
           }
         }
       }
+
+      return {
+        content: totalContent,
+        toolCalls: [],
+        finishReason: 'stop',
+        usage: {
+          promptTokens,
+          completionTokens,
+        },
+      };
     } catch (error) {
       throw new Error(
-        `OpenRouterAdapter streaming: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `OpenRouterAdapter.stream: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     }
   }
 
-  async embedText(text: string): Promise<number[]> {
-    // OpenRouter não tem embeddings nativos, delegar pra outro adapter
-    throw new Error('OpenRouter does not support embeddings. Use a dedicated embedding model.');
-  }
-
-  async callTool(
-    toolName: string,
-    params: Record<string, any>
-  ): Promise<string> {
-    throw new Error('Tool calling not yet implemented for OpenRouter');
-  }
-
-  supportsStreaming(): boolean {
-    return true;
-  }
-
-  supportsToolCalling(): boolean {
-    return false;
-  }
-
-  supportsEmbeddings(): boolean {
-    return false;
-  }
-
-  getName(): string {
-    return `OpenRouter (${this.modelName})`;
+  async embed(text: string): Promise<number[]> {
+    throw new Error(
+      'OpenRouter does not support embeddings natively. Use a dedicated embedding adapter.'
+    );
   }
 }
