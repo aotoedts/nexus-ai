@@ -30,3 +30,5 @@ mobile/*.p12
 mobile/*.key
 mobile/*.mobileprovision
 mobile/.env
+mobile/android/
+mobile/ios/

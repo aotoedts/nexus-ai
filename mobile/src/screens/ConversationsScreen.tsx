@@ -13,7 +13,7 @@ interface Conversation {
   updatedAt: string;
 }
 
-type NavProp = NativeStackNavigationProp<RootStackParamList, 'Conversations'>;
+type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
 /** Tela de historico: lista as conversas do usuario, mais recentes primeiro. */
 export function ConversationsScreen() {

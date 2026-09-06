@@ -1,158 +1,283 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   FlatList,
-  Text,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  TouchableOpacity,
+  StyleSheet,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors } from '../theme/colors';
-import { useChat, ChatMessage } from '../hooks/useChat';
+import { useRoute, useNavigation } from '@react-navigation/native';
+import { useAuth } from '../context/AuthContext';
+import { useAgentRun } from '../hooks/useAgentRun';
+import { AgentStatusPanel } from '../components/AgentStatusPanel';
+import { AgentToggle } from '../components/AgentToggle';
 import { MessageBubble } from '../components/MessageBubble';
 import { ChatInputBar } from '../components/ChatInputBar';
 import { HistoryDrawer } from '../components/HistoryDrawer';
-import { ProfileMenu } from '../components/ProfileMenu';
-import { apiClient } from '../api/client';
-import { RootStackParamList } from '../navigation/RootNavigator';
 
-type ChatRouteProp = RouteProp<RootStackParamList, 'Chat'>;
-type ChatNavProp = NativeStackNavigationProp<RootStackParamList, 'Chat'>;
+interface ChatMessage {
+  id: string;
+  conversationId: string;
+  content: string;
+  role: 'USER' | 'ASSISTANT' | 'SYSTEM' | 'TOOL';
+  createdAt: string;
+}
 
-/**
- * Tela principal de chat. Recebe opcionalmente um conversationId via
- * navegacao (quando o usuario abre uma conversa do historico); sem
- * parametro, comeca uma conversa nova.
- */
-export function ChatScreen() {
-  const navigation = useNavigation<ChatNavProp>();
-  const route = useRoute<ChatRouteProp>();
+interface Conversation {
+  id: string;
+  title: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const ChatScreen: React.FC = () => {
+  const route = useRoute<any>();
+  const navigation = useNavigation<any>();
+  const { user } = useAuth();
+
   const [conversationId, setConversationId] = useState<string | undefined>(
-    route.params?.conversationId,
+    route.params?.conversationId || ''
   );
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isSending, setIsSending] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [historyVisible, setHistoryVisible] = useState(false);
-  const [profileMenuVisible, setProfileMenuVisible] = useState(false);
-  const { messages, isSending, streamingContent, isLoadingHistory, sendMessage } =
-    useChat(conversationId);
-  const listRef = useRef<FlatList<ChatMessage>>(null);
 
-  useEffect(() => {
-    setConversationId(route.params?.conversationId);
-  }, [route.params?.conversationId]);
+  // Agent state
+  const agentRunAPI = useAgentRun({
+    token: user?.token || '',
+    baseURL: 'https://nexus-backend-xu40.onrender.com',
+    pollInterval: 2000,
+  });
 
-  useEffect(() => {
-    navigation.setOptions({
-      headerLeft: () => (
-        <TouchableOpacity onPress={() => setHistoryVisible(true)} style={{ marginLeft: 12 }}>
-          <Ionicons name="menu-outline" size={24} color={colors.text.primary} />
-        </TouchableOpacity>
-      ),
-      headerRight: () => (
-        <TouchableOpacity onPress={() => setProfileMenuVisible(true)} style={{ marginRight: 12 }}>
-          <Ionicons name="person-circle-outline" size={26} color={colors.text.primary} />
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation]);
+  const [agentEnabled, setAgentEnabled] = useState(false);
+  const [agentObjective, setAgentObjective] = useState('');
 
-  useEffect(() => {
-    if (messages.length > 0) {
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+  const listRef = useRef<FlatList>(null);
+
+  // Load messages
+  const loadMessages = useCallback(async () => {
+    if (!conversationId || !user?.token) return;
+
+    try {
+      setIsLoadingHistory(true);
+      const response = await fetch(
+        `https://nexus-backend-xu40.onrender.com/api/v1/conversations/${conversationId}/messages`,
+        {
+          headers: { Authorization: `Bearer ${user.token}` },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(data.messages || []);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar mensagens:', error);
+    } finally {
+      setIsLoadingHistory(false);
     }
-  }, [messages, streamingContent]);
+  }, [conversationId, user?.token]);
 
-  const handleSend = async (content: string, images?: string[], files?: unknown[]) => {
-    const newConversationId = await sendMessage(content, conversationId, images, files);
-    if (!conversationId && newConversationId) {
-      setConversationId(newConversationId);
-      // Renomeia a conversa com base na primeira mensagem, sem bloquear a UI.
-      apiClient
-        .patch(`/conversations/${newConversationId}`, { title: content.slice(0, 60) })
-        .catch(() => {});
+  useEffect(() => {
+    loadMessages();
+  }, [loadMessages]);
+
+  // Clear agent when changing conversation
+  useEffect(() => {
+    agentRunAPI.clearAgent();
+    setAgentEnabled(false);
+    setAgentObjective('');
+  }, [conversationId, agentRunAPI]);
+
+  // Send message
+  const handleSend = useCallback(
+    async (message: string) => {
+      if (!conversationId || !user?.token || !message.trim()) return;
+
+      const userMessage: ChatMessage = {
+        id: `msg_${Date.now()}`,
+        conversationId,
+        content: message,
+        role: 'USER',
+        createdAt: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, userMessage]);
+      setIsSending(true);
+
+      try {
+        const response = await fetch(
+          'https://nexus-backend-xu40.onrender.com/api/v1/chat/send',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${user.token}`,
+            },
+            body: JSON.stringify({
+              conversationId,
+              message,
+            }),
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.reply) {
+            const assistantMessage: ChatMessage = {
+              id: `msg_${Date.now() + 1}`,
+              conversationId,
+              content: data.reply,
+              role: 'ASSISTANT',
+              createdAt: new Date().toISOString(),
+            };
+            setMessages((prev) => [...prev, assistantMessage]);
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao enviar mensagem:', error);
+      } finally {
+        setIsSending(false);
+      }
+    },
+    [conversationId, user?.token]
+  );
+
+  // Agent handlers
+  const handleAgentToggle = useCallback(
+    async (enabled: boolean, objective?: string) => {
+      if (enabled && objective && conversationId) {
+        try {
+          setAgentObjective(objective);
+          await agentRunAPI.startAgent(conversationId, objective);
+          setAgentEnabled(true);
+        } catch (error) {
+          console.error('Erro ao iniciar agente:', error);
+        }
+      } else {
+        setAgentEnabled(false);
+      }
+    },
+    [conversationId, agentRunAPI]
+  );
+
+  const handleAgentCancel = useCallback(async () => {
+    if (agentRunAPI.agentRun?.id) {
+      try {
+        await agentRunAPI.cancelAgent(agentRunAPI.agentRun.id);
+        setAgentEnabled(false);
+        setAgentObjective('');
+      } catch (error) {
+        console.error('Erro ao cancelar agente:', error);
+      }
     }
-  };
+  }, [agentRunAPI]);
+
+  const handleAuthorizeStep = useCallback(async () => {
+    if (agentRunAPI.agentRun?.id && agentRunAPI.agentRun.pendingAuthorization) {
+      try {
+        await agentRunAPI.authorizeStep(
+          agentRunAPI.agentRun.id,
+          agentRunAPI.agentRun.pendingAuthorization.stepId,
+          true
+        );
+      } catch (error) {
+        console.error('Erro ao autorizar:', error);
+      }
+    }
+  }, [agentRunAPI]);
+
+  const handleDenyStep = useCallback(async () => {
+    if (agentRunAPI.agentRun?.id && agentRunAPI.agentRun.pendingAuthorization) {
+      try {
+        await agentRunAPI.authorizeStep(
+          agentRunAPI.agentRun.id,
+          agentRunAPI.agentRun.pendingAuthorization.stepId,
+          false
+        );
+        setAgentEnabled(false);
+      } catch (error) {
+        console.error('Erro ao recusar:', error);
+      }
+    }
+  }, [agentRunAPI]);
+
+  const renderMessage = useCallback(
+    ({ item }: { item: ChatMessage }) => (
+      <MessageBubble message={item} />
+    ),
+    []
+  );
 
   return (
-    <>
-    <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
-      {messages.length === 0 && !isLoadingHistory ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Como posso ajudar hoje?</Text>
-          <Text style={styles.emptySubtitle}>
-            Pergunte algo, peça para pesquisar na internet, ler um documento ou executar uma
-            tarefa em etapas.
-          </Text>
-        </View>
-      ) : (
+    <View style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 40}
+        style={styles.flex}
+      >
         <FlatList
           ref={listRef}
           data={messages}
+          renderItem={renderMessage}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <MessageBubble message={item} />}
-          contentContainerStyle={styles.list}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+          contentContainerStyle={styles.messagesList}
         />
-      )}
 
-      {isSending && (
-        <Text style={styles.thinking}>
-          {streamingContent ? streamingContent : 'Nexus AI está pensando...'}
-        </Text>
-      )}
+        {agentRunAPI.agentRun && (
+          <AgentStatusPanel
+            agentRun={agentRunAPI.agentRun}
+            isLoading={agentRunAPI.isLoading}
+            onAuthorize={handleAuthorizeStep}
+            onDeny={handleDenyStep}
+            onCancel={handleAgentCancel}
+          />
+        )}
 
-      <ChatInputBar onSend={handleSend} disabled={isSending} />
-    </KeyboardAvoidingView>
-    <HistoryDrawer
-      visible={historyVisible}
-      onClose={() => setHistoryVisible(false)}
-      onSelectConversation={(id) => {
-        setConversationId(id);
-        navigation.setParams({ conversationId: id });
-        setHistoryVisible(false);
-      }}
-      onNewConversation={() => {
-        setConversationId(undefined);
-        navigation.setParams({ conversationId: undefined });
-        setHistoryVisible(false);
-      }}
-    />
-    <ProfileMenu
-      visible={profileMenuVisible}
-      onClose={() => setProfileMenuVisible(false)}
-      onSettings={() => {
-        setProfileMenuVisible(false);
-        navigation.navigate('Settings');
-      }}
-    />
-    </>
+        <ChatInputBar
+          onSend={handleSend}
+          disabled={isSending}
+          agentButton={
+            <AgentToggle
+              enabled={agentEnabled}
+              isAgentActive={agentRunAPI.agentRun?.status === 'running'}
+              isLoading={agentRunAPI.isLoading}
+              onToggle={handleAgentToggle}
+              onCancel={handleAgentCancel}
+            />
+          }
+        />
+      </KeyboardAvoidingView>
+
+      <HistoryDrawer
+        visible={historyVisible}
+        onClose={() => setHistoryVisible(false)}
+        onNewConversation={() => {
+          setConversationId(undefined);
+          setHistoryVisible(false);
+        }}
+        onSelectConversation={(id) => {
+          setConversationId(id);
+          setHistoryVisible(false);
+        }}
+      />
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.ink[950] },
-  list: { paddingVertical: 12 },
-  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  emptyTitle: { color: colors.text.primary, fontSize: 19, fontWeight: '700', textAlign: 'center' },
-  emptySubtitle: {
-    color: colors.text.muted,
-    fontSize: 13,
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 19,
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
   },
-  thinking: {
-    color: colors.signal[400],
-    fontSize: 12,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
-    paddingHorizontal: 16,
-    paddingBottom: 6,
+  flex: {
+    flex: 1,
+  },
+  messagesList: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
 });

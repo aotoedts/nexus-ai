@@ -18,9 +18,16 @@ export async function authRoutes(app: FastifyInstance) {
     const body = registerSchema.parse(request.body);
     const user = await registerUseCase.execute(body);
     const token = app.jwt.sign({ sub: user.id, email: user.email, role: user.role });
+
+    const refreshToken = uuid();
+    await prisma.refreshToken.create({
+      data: { id: uuid(), token: refreshToken, userId: user.id, expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
+    });
+
     return reply.status(201).send({
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
       token,
+      refreshToken,
     });
   });
 

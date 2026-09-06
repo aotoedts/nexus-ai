@@ -1,55 +1,77 @@
 import { create } from 'zustand';
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export interface User { id: string; name: string; email: string; role: 'USER' | 'ADMIN'; }
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role?: 'USER' | 'ADMIN';
+}
 
-interface AuthState {
+interface AuthStore {
   user: User | null;
   token: string | null;
   refreshToken: string | null;
-  isHydrated: boolean;
-  hydrate: () => Promise<void>;
   setAuth: (user: User, token: string, refreshToken?: string) => Promise<void>;
   logout: () => Promise<void>;
+  hydrate: () => Promise<void>;
 }
 
-const KEYS = { user: 'nexus_user', token: 'nexus_token', refreshToken: 'nexus_refresh_token' };
+const KEYS = {
+  user: 'nexus_auth_user',
+  token: 'nexus_auth_token',
+  refreshToken: 'nexus_auth_refresh_token',
+};
 
-/**
- * Estado global de autenticacao. O token fica no Keystore/Keychain
- * nativo (via expo-secure-store), criptografado pelo sistema
- * operacional - mais seguro que AsyncStorage puro para dados sensiveis.
- */
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
   token: null,
   refreshToken: null,
-  isHydrated: false,
-
-  hydrate: async () => {
-    const [userRaw, token, refreshToken] = await Promise.all([
-      SecureStore.getItemAsync(KEYS.user),
-      SecureStore.getItemAsync(KEYS.token),
-      SecureStore.getItemAsync(KEYS.refreshToken),
-    ]);
-    set({ user: userRaw ? JSON.parse(userRaw) : null, token, refreshToken, isHydrated: true });
-  },
 
   setAuth: async (user, token, refreshToken) => {
-    await Promise.all([
-      SecureStore.setItemAsync(KEYS.user, JSON.stringify(user)),
-      SecureStore.setItemAsync(KEYS.token, token),
-      refreshToken ? SecureStore.setItemAsync(KEYS.refreshToken, refreshToken) : Promise.resolve(),
-    ]);
     set({ user, token, refreshToken: refreshToken ?? null });
+    try {
+      await Promise.all([
+        AsyncStorage.setItem(KEYS.user, JSON.stringify(user)),
+        AsyncStorage.setItem(KEYS.token, token),
+        refreshToken
+          ? AsyncStorage.setItem(KEYS.refreshToken, refreshToken)
+          : AsyncStorage.removeItem(KEYS.refreshToken),
+      ]);
+    } catch (error) {
+      console.warn('Erro ao salvar auth:', error);
+    }
   },
 
   logout: async () => {
-    await Promise.all([
-      SecureStore.deleteItemAsync(KEYS.user),
-      SecureStore.deleteItemAsync(KEYS.token),
-      SecureStore.deleteItemAsync(KEYS.refreshToken),
-    ]);
     set({ user: null, token: null, refreshToken: null });
+    try {
+      await Promise.all([
+        AsyncStorage.removeItem(KEYS.user),
+        AsyncStorage.removeItem(KEYS.token),
+        AsyncStorage.removeItem(KEYS.refreshToken),
+      ]);
+    } catch (error) {
+      console.warn('Erro ao limpar auth:', error);
+    }
+  },
+
+  hydrate: async () => {
+    try {
+      const [storedUser, storedToken, storedRefreshToken] = await Promise.all([
+        AsyncStorage.getItem(KEYS.user),
+        AsyncStorage.getItem(KEYS.token),
+        AsyncStorage.getItem(KEYS.refreshToken),
+      ]);
+      if (storedUser && storedToken) {
+        set({
+          user: JSON.parse(storedUser),
+          token: storedToken,
+          refreshToken: storedRefreshToken,
+        });
+      }
+    } catch (error) {
+      console.warn('Erro ao hidratar auth:', error);
+    }
   },
 }));

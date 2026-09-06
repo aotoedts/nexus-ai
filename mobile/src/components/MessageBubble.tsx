@@ -6,7 +6,7 @@ import { ChatMessage } from '../hooks/useChat';
 interface Props { message: ChatMessage; }
 
 export function MessageBubble({ message }: Props) {
-  const isUser = message.role === 'USER';
+  const isUser = message.role?.toString().toUpperCase() === 'USER';
   const time = new Date(message.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   return (
     <View style={[styles.row, isUser ? styles.rowUser : styles.rowAssistant]}>

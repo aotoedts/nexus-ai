@@ -5,40 +5,49 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
-    "backgroundColor": "#0a0a12",
-    "newArchEnabled": true,
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0a0a12"
+      "backgroundColor": "#ffffff"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nexusai"
+    },
     "android": {
-      "package": "ai.nexus.mobile",
-      "versionCode": 1,
-      "edgeToEdgeEnabled": true,
-      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0a0a12"
+        "backgroundColor": "#ffffff"
       },
+      "softwareKeyboardLayoutMode": "resize",
+      "edgeToEdgeEnabled": true,
+      "package": "com.nexusai",
       "permissions": [
-        "INTERNET",
-        "ACCESS_NETWORK_STATE"
+        "android.permission.RECORD_AUDIO"
       ]
     },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos.",
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera."
+        }
+      ],
+      "expo-font"
+    ],
     "extra": {
-      "apiUrl": "https://nexus-backend-xu40.onrender.com/api/v1",
-      "wsUrl": "wss://nexus-backend-xu40.onrender.com/api/v1/ws",
       "eas": {
         "projectId": "997912b4-c75c-4790-93cd-44b311f68e10"
       }
-    },
-    "plugins": [
-      "expo-font"
-    ]
+    }
   }
 }
