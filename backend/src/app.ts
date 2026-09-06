@@ -1,5 +1,6 @@
 import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
+import rateLimit from '@fastify/rate-limit';
 import multipart from '@fastify/multipart';
 import staticPlugin from '@fastify/static';
 import path from 'node:path';
@@ -34,6 +35,10 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(multipart, { limits: { fileSize: env.MAX_FILE_SIZE_MB * 1024 * 1024 } });
   await app.register(staticPlugin, { root: path.resolve(env.UPLOAD_DIR), prefix: '/files/' });
   await app.register(errorHandlerPlugin);
+  await app.register(rateLimit, {
+    max: 100,
+    timeWindow: '1 minute',
+  });
   await app.register(authPlugin);
   await app.register(websocketPlugin);
   await registerRequestLogger(app);

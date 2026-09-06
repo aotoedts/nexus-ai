@@ -14,7 +14,14 @@ export async function authRoutes(app: FastifyInstance) {
   const registerUseCase = new RegisterUserUseCase(userRepository);
   const loginUseCase = new LoginUseCase(userRepository);
 
-  app.post('/auth/register', async (request, reply) => {
+  app.post('/auth/register', {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
     const body = registerSchema.parse(request.body);
     const user = await registerUseCase.execute(body);
     const token = app.jwt.sign({ sub: user.id, email: user.email, role: user.role });
@@ -31,7 +38,14 @@ export async function authRoutes(app: FastifyInstance) {
     });
   });
 
-  app.post('/auth/login', async (request, reply) => {
+  app.post('/auth/login', {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
     const body = loginSchema.parse(request.body);
     const user = await loginUseCase.execute(body);
     const token = app.jwt.sign({ sub: user.id, email: user.email, role: user.role });
@@ -58,8 +72,20 @@ export async function authRoutes(app: FastifyInstance) {
     if (!user) {
       return reply.status(401).send({ error: { code: 'USER_NOT_FOUND', message: 'Usuario nao encontrado' } });
     }
+
+    await prisma.refreshToken.delete({ where: { id: stored.id } });
+    const newRefreshToken = uuid();
+    await prisma.refreshToken.create({
+      data: {
+        id: uuid(),
+        token: newRefreshToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    });
+
     const token = app.jwt.sign({ sub: user.id, email: user.email, role: user.role });
-    return reply.send({ token });
+    return reply.send({ token, refreshToken: newRefreshToken });
   });
 
   app.get('/auth/me', { onRequest: [app.authenticate] }, async (request) => {
