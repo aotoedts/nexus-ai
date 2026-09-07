@@ -9,11 +9,22 @@ export interface AgentStep {
   toolArgs?: Record<string, unknown>;
 }
 
+export interface PendingAction {
+  toolName: string;
+  arguments: Record<string, unknown>;
+  description: string;
+}
+
 export interface AgentRunResult {
   steps: AgentStep[];
   finalAnswer: string;
-  status: 'completed' | 'failed';
+  status: 'completed' | 'failed' | 'awaiting_authorization';
+  pendingAction?: PendingAction;
 }
+
+// Ferramentas que exigem autorizacao explicita do usuario antes de executar,
+// por poderem alterar estado externo (repositorio, arquivos, etc).
+const TOOLS_REQUIRING_AUTHORIZATION = new Set(['run_terminal_command']);
 
 export class AgentExecutor {
   constructor(
@@ -22,8 +33,7 @@ export class AgentExecutor {
     private maxIterations = 6,
   ) {}
 
-  async run(goal: string, conversationHistory: ChatMessageInput[] = []): Promise<AgentRunResult> {
-    const steps: AgentStep[] = [];
+  private buildMessages(goal: string, conversationHistory: ChatMessageInput[], steps: AgentStep[]): ChatMessageInput[] {
     const messages: ChatMessageInput[] = [
       {
         role: 'system',
@@ -35,36 +45,71 @@ export class AgentExecutor {
       { role: 'user', content: goal },
     ];
 
-    for (let i = 0; i < this.maxIterations; i++) {
+    for (const step of steps) {
+      if (step.type === 'tool_call') {
+        messages.push({
+          role: 'assistant',
+          content: `Chamei a ferramenta ${step.toolName} com argumentos ${JSON.stringify(step.toolArgs)}`,
+        });
+      } else if (step.type === 'tool_result') {
+        messages.push({ role: 'tool', content: step.content });
+      }
+    }
+
+    return messages;
+  }
+
+  async run(
+    goal: string,
+    conversationHistory: ChatMessageInput[] = [],
+    previousSteps: AgentStep[] = [],
+  ): Promise<AgentRunResult> {
+    const steps: AgentStep[] = [...previousSteps];
+    const messages = this.buildMessages(goal, conversationHistory, previousSteps);
+    const iterationsUsed = previousSteps.filter((s) => s.type === 'tool_call').length;
+
+    for (let i = iterationsUsed; i < this.maxIterations; i++) {
       const result = await this.model.complete(messages, {
         tools: this.tools.toModelDefinitions(),
       });
 
       if (result.finishReason === 'tool_call' && result.toolCalls?.length) {
         for (const call of result.toolCalls) {
-          steps.push({ type: 'tool_call', content: `Chamando ${call.toolName}`, toolName: call.toolName, toolArgs: call.arguments });
-
           const tool = this.tools.get(call.toolName);
+
           if (!tool) {
             steps.push({ type: 'tool_result', content: `Ferramenta ${call.toolName} nao encontrada` });
             continue;
           }
 
+          if (TOOLS_REQUIRING_AUTHORIZATION.has(call.toolName)) {
+            steps.push({
+              type: 'tool_call',
+              content: `Aguardando autorizacao para ${call.toolName}`,
+              toolName: call.toolName,
+              toolArgs: call.arguments,
+            });
+            return {
+              steps,
+              finalAnswer: '',
+              status: 'awaiting_authorization',
+              pendingAction: {
+                toolName: call.toolName,
+                arguments: call.arguments,
+                description: tool.description,
+              },
+            };
+          }
+
+          steps.push({ type: 'tool_call', content: `Chamando ${call.toolName}`, toolName: call.toolName, toolArgs: call.arguments });
           const toolResult = await tool.execute(call.arguments);
-          steps.push({
-            type: 'tool_result',
-            content: JSON.stringify(toolResult),
-            toolName: call.toolName,
-          });
+          steps.push({ type: 'tool_result', content: JSON.stringify(toolResult), toolName: call.toolName });
 
           messages.push({
             role: 'assistant',
             content: `Chamei a ferramenta ${call.toolName} com argumentos ${JSON.stringify(call.arguments)}`,
           });
-          messages.push({
-            role: 'tool',
-            content: JSON.stringify(toolResult),
-          });
+          messages.push({ role: 'tool', content: JSON.stringify(toolResult) });
         }
         continue;
       }
@@ -79,5 +124,29 @@ export class AgentExecutor {
       finalAnswer: 'Nao foi possivel concluir a tarefa dentro do limite de etapas permitido.',
       status: 'failed',
     };
+  }
+
+  async authorize(
+    goal: string,
+    conversationHistory: ChatMessageInput[],
+    steps: AgentStep[],
+    pendingAction: PendingAction,
+    approved: boolean,
+  ): Promise<AgentRunResult> {
+    const updatedSteps = [...steps];
+    const tool = this.tools.get(pendingAction.toolName);
+
+    if (approved && tool) {
+      const toolResult = await tool.execute(pendingAction.arguments);
+      updatedSteps.push({ type: 'tool_result', content: JSON.stringify(toolResult), toolName: pendingAction.toolName });
+    } else {
+      updatedSteps.push({
+        type: 'tool_result',
+        content: 'Acao rejeitada pelo usuario.',
+        toolName: pendingAction.toolName,
+      });
+    }
+
+    return this.run(goal, conversationHistory, updatedSteps);
   }
 }

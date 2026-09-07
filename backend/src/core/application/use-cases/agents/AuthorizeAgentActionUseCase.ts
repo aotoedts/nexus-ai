@@ -1,36 +1,34 @@
-import { v4 as uuid } from 'uuid';
-import { AgentExecutor } from '../../../infrastructure/agents/AgentExecutor.js';
+import { AgentExecutor, AgentStep, PendingAction } from '../../../infrastructure/agents/AgentExecutor.js';
 import { prisma } from '../../../infrastructure/database/prisma/client.js';
+import { Prisma } from '@prisma/client';
 import { ForbiddenError } from '../../../../shared/errors/AppError.js';
 
-export interface RunAgentTaskInput {
+export interface AuthorizeAgentActionInput {
   userId: string;
-  conversationId: string;
-  goal: string;
+  runId: string;
+  approved: boolean;
 }
 
-export class RunAgentTaskUseCase {
+export class AuthorizeAgentActionUseCase {
   constructor(private executor: AgentExecutor) {}
 
-  async execute(input: RunAgentTaskInput) {
-    const user = await prisma.user.findUnique({ where: { id: input.userId } });
-    if (!user?.agentEnabled) {
-      throw new ForbiddenError('O agente esta desativado. Ative-o nas configuracoes para permitir execucao autonoma.');
+  async execute(input: AuthorizeAgentActionInput) {
+    const run = await prisma.agentRun.findUnique({ where: { id: input.runId } });
+    if (!run || run.userId !== input.userId) {
+      throw new ForbiddenError('Execucao de agente nao encontrada.');
+    }
+    if (run.status !== 'AWAITING_AUTHORIZATION' || !run.pendingAction) {
+      throw new ForbiddenError('Esta execucao nao esta aguardando autorizacao.');
     }
 
-    const run = await prisma.agentRun.create({
-      data: {
-        id: uuid(),
-        userId: input.userId,
-        conversationId: input.conversationId,
-        goal: input.goal,
-        steps: [],
-        status: 'EXECUTING',
-      },
-    });
-
     try {
-      const result = await this.executor.run(input.goal);
+      const result = await this.executor.authorize(
+        run.goal,
+        [],
+        run.steps as unknown as AgentStep[],
+        run.pendingAction as unknown as PendingAction,
+        input.approved,
+      );
 
       if (result.status === 'awaiting_authorization') {
         await prisma.agentRun.update({
@@ -44,6 +42,7 @@ export class RunAgentTaskUseCase {
             steps: result.steps as any,
             status: result.status === 'completed' ? 'COMPLETED' : 'FAILED',
             finishedAt: new Date(),
+            pendingAction: Prisma.JsonNull,
           },
         });
       }
