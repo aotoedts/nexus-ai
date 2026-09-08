@@ -1,7 +1,8 @@
 {
   "expo": {
     "name": "Nexus AI",
-    "slug": "nexus-ai",
+    "slug": "isaias1t7",
+    "owner": "isaias1t7s-team",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -46,7 +47,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "997912b4-c75c-4790-93cd-44b311f68e10"
+        "projectId": "8ca94d52-d174-49c7-b895-b784a36fe634"
       }
     }
   }

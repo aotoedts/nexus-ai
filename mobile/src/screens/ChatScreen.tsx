@@ -7,7 +7,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { useAuth } from '../context/AuthContext';
+import { useAuthStore } from '../store/authStore';
 import { useAgentRun } from '../hooks/useAgentRun';
 import { AgentStatusPanel } from '../components/AgentStatusPanel';
 import { AgentToggle } from '../components/AgentToggle';
@@ -34,7 +34,7 @@ interface Conversation {
 export const ChatScreen: React.FC = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
-  const { user } = useAuth();
+  const { token } = useAuthStore();
 
   const [conversationId, setConversationId] = useState<string | undefined>(
     route.params?.conversationId || ''
@@ -46,7 +46,7 @@ export const ChatScreen: React.FC = () => {
 
   // Agent state
   const agentRunAPI = useAgentRun({
-    token: user?.token || '',
+    token: token || '',
     baseURL: 'https://nexus-backend-xu40.onrender.com',
     pollInterval: 2000,
   });
@@ -58,14 +58,14 @@ export const ChatScreen: React.FC = () => {
 
   // Load messages
   const loadMessages = useCallback(async () => {
-    if (!conversationId || !user?.token) return;
+    if (!conversationId || !token) return;
 
     try {
       setIsLoadingHistory(true);
       const response = await fetch(
         `https://nexus-backend-xu40.onrender.com/api/v1/conversations/${conversationId}/messages`,
         {
-          headers: { Authorization: `Bearer ${user.token}` },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
@@ -78,7 +78,7 @@ export const ChatScreen: React.FC = () => {
     } finally {
       setIsLoadingHistory(false);
     }
-  }, [conversationId, user?.token]);
+  }, [conversationId, token]);
 
   useEffect(() => {
     loadMessages();
@@ -94,7 +94,7 @@ export const ChatScreen: React.FC = () => {
   // Send message
   const handleSend = useCallback(
     async (message: string) => {
-      if (!conversationId || !user?.token || !message.trim()) return;
+      if (!conversationId || !token || !message.trim()) return;
 
       const userMessage: ChatMessage = {
         id: `msg_${Date.now()}`,
@@ -114,7 +114,7 @@ export const ChatScreen: React.FC = () => {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Authorization: `Bearer ${user.token}`,
+              Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({
               conversationId,
@@ -142,7 +142,7 @@ export const ChatScreen: React.FC = () => {
         setIsSending(false);
       }
     },
-    [conversationId, user?.token]
+    [conversationId, token]
   );
 
   // Agent handlers
