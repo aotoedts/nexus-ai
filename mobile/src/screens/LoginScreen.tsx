@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { colors } from '../theme/colors';
+import { Alert } from 'react-native';
 import { apiClient } from '../api/client';
 import { useAuthStore } from '../store/authStore';
 
@@ -86,6 +87,20 @@ export function LoginScreen() {
           style={styles.input}
         />
 
+        {mode === 'login' && (
+          <TouchableOpacity
+            onPress={() =>
+              Alert.alert(
+                'Em breve',
+                'A recuperacao de senha por e-mail ainda nao esta disponivel. Entre em contato com o suporte por enquanto.'
+              )
+            }
+            style={styles.forgotPasswordButton}
+          >
+            <Text style={styles.forgotPasswordText}>Esqueceu a senha?</Text>
+          </TouchableOpacity>
+        )}
+
         {!!error && <Text style={styles.error}>{error}</Text>}
 
         <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading}>
@@ -135,4 +150,6 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: colors.white, fontSize: 15, fontWeight: '600' },
   switchText: { color: colors.text.muted, fontSize: 12, textAlign: 'center', marginTop: 14 },
+  forgotPasswordButton: { alignSelf: 'flex-end', marginBottom: 10, marginTop: -2 },
+  forgotPasswordText: { color: colors.signal[400], fontSize: 12, fontWeight: '500' },
 });
