@@ -5,11 +5,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import { colors } from '../theme/colors';
 
 interface ChatInputBarProps {
   onSend: (message: string) => void;
@@ -73,12 +73,12 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
     <View style={styles.container}>
       <View style={styles.inputWrapper}>
         {agentButton}
-        
+
         <View style={styles.inputContainer}>
           <TextInput
             style={[styles.input, disabled && styles.inputDisabled]}
             placeholder="Escreva uma mensagem..."
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={colors.text.muted}
             value={message}
             onChangeText={setMessage}
             multiline
@@ -92,9 +92,9 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
             disabled={disabled || isPickingImage}
           >
             {isPickingImage ? (
-              <ActivityIndicator size="small" color="#3B82F6" />
+              <ActivityIndicator size="small" color={colors.signal[400]} />
             ) : (
-              <Ionicons name="image" size={20} color="#3B82F6" />
+              <Ionicons name="image" size={20} color={colors.signal[400]} />
             )}
           </TouchableOpacity>
 
@@ -103,7 +103,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
             onPress={handlePickFile}
             disabled={disabled}
           >
-            <Ionicons name="document" size={20} color="#3B82F6" />
+            <Ionicons name="document" size={20} color={colors.signal[400]} />
           </TouchableOpacity>
         </View>
 
@@ -113,9 +113,9 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           disabled={disabled || !message.trim()}
         >
           {disabled ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color={colors.ink[950]} />
           ) : (
-            <Ionicons name="send" size={20} color="#fff" />
+            <Ionicons name="send" size={20} color={colors.ink[950]} />
           )}
         </TouchableOpacity>
       </View>
@@ -125,9 +125,9 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.ink[900],
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.ink[800],
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.ink[800],
     borderRadius: 8,
     paddingHorizontal: 8,
     gap: 4,
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 8,
     fontSize: 14,
-    color: '#1F2937',
+    color: colors.text.primary,
     maxHeight: 100,
   },
   inputDisabled: {
@@ -165,13 +165,13 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   sendButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.signal[400],
     borderRadius: 8,
     padding: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   sendButtonDisabled: {
-    backgroundColor: '#D1D5DB',
+    backgroundColor: colors.ink[700],
   },
 });

@@ -6,43 +6,27 @@ import {
   Platform,
   StyleSheet,
 } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
+import { useChat } from '../hooks/useChat';
 import { useAgentRun } from '../hooks/useAgentRun';
 import { AgentStatusPanel } from '../components/AgentStatusPanel';
 import { AgentToggle } from '../components/AgentToggle';
 import { MessageBubble } from '../components/MessageBubble';
 import { ChatInputBar } from '../components/ChatInputBar';
 import { HistoryDrawer } from '../components/HistoryDrawer';
-
-interface ChatMessage {
-  id: string;
-  conversationId: string;
-  content: string;
-  role: 'USER' | 'ASSISTANT' | 'SYSTEM' | 'TOOL';
-  createdAt: string;
-}
-
-interface Conversation {
-  id: string;
-  title: string;
-  userId: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { colors } from '../theme/colors';
 
 export const ChatScreen: React.FC = () => {
   const route = useRoute<any>();
-  const navigation = useNavigation<any>();
   const { token } = useAuthStore();
 
   const [conversationId, setConversationId] = useState<string | undefined>(
-    route.params?.conversationId || ''
+    route.params?.conversationId || undefined
   );
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isSending, setIsSending] = useState(false);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [historyVisible, setHistoryVisible] = useState(false);
+
+  const { messages, isSending, isLoadingHistory, sendMessage } = useChat(conversationId);
 
   // Agent state
   const agentRunAPI = useAgentRun({
@@ -56,93 +40,22 @@ export const ChatScreen: React.FC = () => {
 
   const listRef = useRef<FlatList>(null);
 
-  // Load messages
-  const loadMessages = useCallback(async () => {
-    if (!conversationId || !token) return;
-
-    try {
-      setIsLoadingHistory(true);
-      const response = await fetch(
-        `https://nexus-backend-xu40.onrender.com/api/v1/conversations/${conversationId}/messages`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setMessages(data.messages || []);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar mensagens:', error);
-    } finally {
-      setIsLoadingHistory(false);
-    }
-  }, [conversationId, token]);
-
-  useEffect(() => {
-    loadMessages();
-  }, [loadMessages]);
-
   // Clear agent when changing conversation
   useEffect(() => {
     agentRunAPI.clearAgent();
     setAgentEnabled(false);
     setAgentObjective('');
-  }, [conversationId, agentRunAPI]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
 
-  // Send message
   const handleSend = useCallback(
     async (message: string) => {
-      if (!conversationId || !token || !message.trim()) return;
-
-      const userMessage: ChatMessage = {
-        id: `msg_${Date.now()}`,
-        conversationId,
-        content: message,
-        role: 'USER',
-        createdAt: new Date().toISOString(),
-      };
-
-      setMessages((prev) => [...prev, userMessage]);
-      setIsSending(true);
-
-      try {
-        const response = await fetch(
-          'https://nexus-backend-xu40.onrender.com/api/v1/chat/send',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              conversationId,
-              message,
-            }),
-          }
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.reply) {
-            const assistantMessage: ChatMessage = {
-              id: `msg_${Date.now() + 1}`,
-              conversationId,
-              content: data.reply,
-              role: 'ASSISTANT',
-              createdAt: new Date().toISOString(),
-            };
-            setMessages((prev) => [...prev, assistantMessage]);
-          }
-        }
-      } catch (error) {
-        console.error('Erro ao enviar mensagem:', error);
-      } finally {
-        setIsSending(false);
+      const newConversationId = await sendMessage(message, conversationId);
+      if (!conversationId && newConversationId) {
+        setConversationId(newConversationId);
       }
     },
-    [conversationId, token]
+    [conversationId, sendMessage]
   );
 
   // Agent handlers
@@ -205,17 +118,15 @@ export const ChatScreen: React.FC = () => {
   }, [agentRunAPI]);
 
   const renderMessage = useCallback(
-    ({ item }: { item: ChatMessage }) => (
-      <MessageBubble message={item} />
-    ),
+    ({ item }: { item: (typeof messages)[number] }) => <MessageBubble message={item} />,
     []
   );
 
   return (
     <View style={styles.container}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 40}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         style={styles.flex}
       >
         <FlatList
@@ -225,6 +136,7 @@ export const ChatScreen: React.FC = () => {
           keyExtractor={(item) => item.id}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
           contentContainerStyle={styles.messagesList}
+          style={styles.flex}
         />
 
         {agentRunAPI.agentRun && (
@@ -271,7 +183,7 @@ export const ChatScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.ink[950],
   },
   flex: {
     flex: 1,
