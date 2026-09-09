@@ -170,7 +170,7 @@ export const ChatScreen: React.FC = () => {
       </Modal>
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="height"
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         style={styles.flex}
       >

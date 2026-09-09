@@ -49,7 +49,7 @@ export function LoginScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="height"
     >
       <View style={styles.logoBlock}>
         <View style={styles.logoIcon} />
