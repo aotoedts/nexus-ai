@@ -48,14 +48,50 @@ export function useChat(conversationId: string | undefined) {
       new Promise<{ conversationId: string; content: string }>((resolve, reject) => {
         const socket = wsRef.current;
         if (!socket || socket.readyState !== WebSocket.OPEN) { reject(new Error('WebSocket indisponivel')); return; }
+
+        let settled = false;
         let accumulated = '';
+
+        const cleanup = () => {
+          socket.removeEventListener('message', handleMessage);
+          socket.removeEventListener('close', handleClose);
+          clearTimeout(timeoutId);
+        };
+
+        // Se o backend nao responder em 20s (ex: cold start do Render, travamento
+        // na chamada ao modelo de IA), desiste do WebSocket e cai para o HTTP.
+        const timeoutId = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error('Timeout aguardando resposta do WebSocket'));
+        }, 20000);
+
         const handleMessage = (event: any) => {
           const data: WsEvent = JSON.parse(event.data);
           if (data.type === 'token') { accumulated += data.token; setStreamingContent(accumulated); }
-          else if (data.type === 'done') { socket.removeEventListener('message', handleMessage); resolve({ conversationId: data.conversationId, content: data.message }); }
-          else if (data.type === 'error') { socket.removeEventListener('message', handleMessage); reject(new Error(data.message)); }
+          else if (data.type === 'done') {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            resolve({ conversationId: data.conversationId, content: data.message });
+          } else if (data.type === 'error') {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            reject(new Error(data.message));
+          }
         };
+
+        const handleClose = () => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error('WebSocket fechou antes de responder'));
+        };
+
         socket.addEventListener('message', handleMessage);
+        socket.addEventListener('close', handleClose);
         socket.send(JSON.stringify({ conversationId: currentConversationId, content, images }));
       }),
     [],
