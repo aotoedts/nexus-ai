@@ -101,11 +101,17 @@ export class SendMessageUseCase {
       }),
     );
 
-    await this.saveMemory.execute({
-      userId: input.userId,
-      content: `Usuario perguntou: "${input.content}". Assistente respondeu: "${result.content.slice(0, 200)}"`,
-      kind: 'event',
-    });
+    try {
+      await this.saveMemory.execute({
+        userId: input.userId,
+        content: `Usuario perguntou: "${input.content}". Assistente respondeu: "${result.content.slice(0, 200)}"`,
+        kind: 'event',
+      });
+    } catch (error) {
+      // Falha ao salvar memoria (ex: embeddings nao suportados pelo provider
+      // atual) nao deve derrubar a resposta ja gerada para o usuario.
+      console.error('Falha ao salvar memoria, seguindo sem persistir:', error);
+    }
 
     return { conversationId, userMessage, assistantMessage };
   }
