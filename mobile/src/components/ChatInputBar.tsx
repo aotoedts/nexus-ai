@@ -75,22 +75,38 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
     }
   };
 
+  const handleTakePhoto = async () => {
+    setMenuVisible(false);
+    setIsPickingImage(true);
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        setIsPickingImage(false);
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0].base64) {
+        const base64 = result.assets[0].base64;
+        onSend(`[Image: ${base64.substring(0, 50)}...]`);
+      }
+    } catch (error) {
+      console.error('Erro ao tirar foto:', error);
+    } finally {
+      setIsPickingImage(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.inputWrapper}>
         {agentButton}
-
-        <TouchableOpacity
-          style={[styles.iconButton, disabled && styles.iconButtonDisabled]}
-          onPress={() => setMenuVisible(true)}
-          disabled={disabled}
-        >
-          {isPickingImage ? (
-            <ActivityIndicator size="small" color={colors.signal[400]} />
-          ) : (
-            <Ionicons name="add-circle" size={26} color={colors.signal[400]} />
-          )}
-        </TouchableOpacity>
 
         <View style={styles.inputContainer}>
           <TextInput
@@ -104,6 +120,18 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
             editable={!disabled}
           />
         </View>
+
+        <TouchableOpacity
+          style={[styles.iconButton, disabled && styles.iconButtonDisabled]}
+          onPress={() => setMenuVisible(true)}
+          disabled={disabled}
+        >
+          {isPickingImage ? (
+            <ActivityIndicator size="small" color={colors.signal[400]} />
+          ) : (
+            <Ionicons name="add-circle" size={26} color={colors.signal[400]} />
+          )}
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.sendButton, (disabled || !message.trim()) && styles.sendButtonDisabled]}
@@ -126,6 +154,11 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       >
         <Pressable style={styles.menuOverlay} onPress={() => setMenuVisible(false)}>
           <View style={styles.menuContainer}>
+            <TouchableOpacity style={styles.menuItem} onPress={handleTakePhoto}>
+              <Ionicons name="camera" size={22} color={colors.signal[400]} />
+              <Text style={styles.menuItemText}>Câmera</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.menuItem} onPress={handlePickImage}>
               <Ionicons name="image" size={22} color={colors.signal[400]} />
               <Text style={styles.menuItemText}>Fotos</Text>

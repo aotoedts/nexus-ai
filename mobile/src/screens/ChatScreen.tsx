@@ -6,7 +6,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { TouchableOpacity, Modal, Pressable, Text } from 'react-native';
+import { TouchableOpacity, Modal, Pressable, Text, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/authStore';
 import { useChat } from '../hooks/useChat';
@@ -67,9 +67,17 @@ export const ChatScreen: React.FC = () => {
 
   const handleSend = useCallback(
     async (message: string) => {
-      const newConversationId = await sendMessage(message, conversationId);
-      if (!conversationId && newConversationId) {
-        setConversationId(newConversationId);
+      try {
+        const newConversationId = await sendMessage(message, conversationId);
+        if (!conversationId && newConversationId) {
+          setConversationId(newConversationId);
+        }
+      } catch (error: any) {
+        console.error('Erro ao enviar mensagem:', error);
+        Alert.alert(
+          'Erro ao enviar mensagem',
+          error?.message || error?.response?.data?.message || 'Falha desconhecida ao conectar com o servidor.'
+        );
       }
     },
     [conversationId, sendMessage]
@@ -170,7 +178,7 @@ export const ChatScreen: React.FC = () => {
       </Modal>
 
       <KeyboardAvoidingView
-        behavior="height"
+        behavior="padding"
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         style={styles.flex}
       >
