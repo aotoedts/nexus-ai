@@ -5,6 +5,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Modal,
+  Pressable,
+  Text,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -24,6 +27,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
 }) => {
   const [message, setMessage] = useState('');
   const [isPickingImage, setIsPickingImage] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
 
   const handleSend = () => {
     if (message.trim() && !disabled) {
@@ -33,6 +37,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   };
 
   const handlePickImage = async () => {
+    setMenuVisible(false);
     setIsPickingImage(true);
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -55,6 +60,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   };
 
   const handlePickFile = async () => {
+    setMenuVisible(false);
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: '*/*',
@@ -74,6 +80,18 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       <View style={styles.inputWrapper}>
         {agentButton}
 
+        <TouchableOpacity
+          style={[styles.iconButton, disabled && styles.iconButtonDisabled]}
+          onPress={() => setMenuVisible(true)}
+          disabled={disabled}
+        >
+          {isPickingImage ? (
+            <ActivityIndicator size="small" color={colors.signal[400]} />
+          ) : (
+            <Ionicons name="add-circle" size={26} color={colors.signal[400]} />
+          )}
+        </TouchableOpacity>
+
         <View style={styles.inputContainer}>
           <TextInput
             style={[styles.input, disabled && styles.inputDisabled]}
@@ -85,26 +103,6 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
             maxLength={500}
             editable={!disabled}
           />
-
-          <TouchableOpacity
-            style={[styles.iconButton, isPickingImage && styles.iconButtonDisabled]}
-            onPress={handlePickImage}
-            disabled={disabled || isPickingImage}
-          >
-            {isPickingImage ? (
-              <ActivityIndicator size="small" color={colors.signal[400]} />
-            ) : (
-              <Ionicons name="image" size={20} color={colors.signal[400]} />
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.iconButton, disabled && styles.iconButtonDisabled]}
-            onPress={handlePickFile}
-            disabled={disabled}
-          >
-            <Ionicons name="document" size={20} color={colors.signal[400]} />
-          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
@@ -119,6 +117,27 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           )}
         </TouchableOpacity>
       </View>
+
+      <Modal
+        visible={menuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <Pressable style={styles.menuOverlay} onPress={() => setMenuVisible(false)}>
+          <View style={styles.menuContainer}>
+            <TouchableOpacity style={styles.menuItem} onPress={handlePickImage}>
+              <Ionicons name="image" size={22} color={colors.signal[400]} />
+              <Text style={styles.menuItemText}>Fotos</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuItem} onPress={handlePickFile}>
+              <Ionicons name="document" size={22} color={colors.signal[400]} />
+              <Text style={styles.menuItemText}>Arquivo</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 };
@@ -173,5 +192,28 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: colors.ink[700],
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  menuContainer: {
+    backgroundColor: colors.ink[900],
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingVertical: 8,
+    paddingBottom: 24,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+  },
+  menuItemText: {
+    fontSize: 15,
+    color: colors.text.primary,
   },
 });
