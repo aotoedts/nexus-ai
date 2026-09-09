@@ -28,12 +28,10 @@ export const AgentToggle: React.FC<AgentToggleProps> = ({
   const [objective, setObjective] = useState('');
 
   const handleTogglePress = () => {
-    if (enabled && !isAgentActive) {
-      setShowObjectiveModal(true);
-    } else if (isAgentActive && onCancel) {
-      onCancel();
+    if (isAgentActive) {
+      onCancel?.();
     } else {
-      onToggle(false);
+      setShowObjectiveModal(true);
     }
   };
 

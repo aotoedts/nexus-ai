@@ -36,7 +36,11 @@ function ChatStackNavigator() {
         headerTintColor: colors.text.primary,
       }}
     >
-      <ChatStack.Screen name="Chat" component={ChatScreen} options={{ title: 'Nexus AI' }} />
+      <ChatStack.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{ title: 'Nexus AI', keyboardHandlingEnabled: false }}
+      />
       <ChatStack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Configurações' }} />
     </ChatStack.Navigator>
   );
