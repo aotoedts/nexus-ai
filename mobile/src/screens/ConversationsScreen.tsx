@@ -72,9 +72,14 @@ export function ConversationsScreen() {
       }
       renderItem={({ item }) => (
         <ConversationListItem
+          id={item.id}
           title={item.title}
           updatedAt={item.updatedAt}
           onPress={() => navigation.navigate('Chat', { conversationId: item.id })}
+          onDeleted={() => setConversations((prev) => prev.filter((c) => c.id !== item.id))}
+          onRenamed={(newTitle) =>
+            setConversations((prev) => prev.map((c) => (c.id === item.id ? { ...c, title: newTitle } : c)))
+          }
         />
       )}
     />

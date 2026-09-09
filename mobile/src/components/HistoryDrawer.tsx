@@ -66,9 +66,14 @@ export function HistoryDrawer({ visible, onClose, onSelectConversation, onNewCon
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <ConversationListItem
+                  id={item.id}
                   title={item.title}
                   updatedAt={item.updatedAt}
                   onPress={() => onSelectConversation(item.id)}
+                  onDeleted={() => setConversations((prev) => prev.filter((c) => c.id !== item.id))}
+                  onRenamed={(newTitle) =>
+                    setConversations((prev) => prev.map((c) => (c.id === item.id ? { ...c, title: newTitle } : c)))
+                  }
                 />
               )}
             />

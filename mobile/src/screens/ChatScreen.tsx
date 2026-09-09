@@ -6,7 +6,9 @@ import {
   Platform,
   StyleSheet,
 } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
+import { TouchableOpacity, Modal, Pressable, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/authStore';
 import { useChat } from '../hooks/useChat';
 import { useAgentRun } from '../hooks/useAgentRun';
@@ -19,12 +21,27 @@ import { colors } from '../theme/colors';
 
 export const ChatScreen: React.FC = () => {
   const route = useRoute<any>();
-  const { token } = useAuthStore();
+  const navigation = useNavigation<any>();
+  const { token, logout } = useAuthStore();
 
   const [conversationId, setConversationId] = useState<string | undefined>(
     route.params?.conversationId || undefined
   );
   const [historyVisible, setHistoryVisible] = useState(false);
+  const [profileMenuVisible, setProfileMenuVisible] = useState(false);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => setProfileMenuVisible(true)}
+          style={{ paddingHorizontal: 12, paddingVertical: 6 }}
+        >
+          <Ionicons name="person-circle-outline" size={26} color={colors.text.primary} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
 
   const { messages, isSending, isLoadingHistory, sendMessage } = useChat(conversationId);
 
@@ -124,6 +141,34 @@ export const ChatScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      <Modal visible={profileMenuVisible} transparent animationType="fade" onRequestClose={() => setProfileMenuVisible(false)}>
+        <Pressable style={styles.menuBackdrop} onPress={() => setProfileMenuVisible(false)}>
+          <View style={styles.menuPanel}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setProfileMenuVisible(false);
+                setHistoryVisible(true);
+              }}
+            >
+              <Ionicons name="time-outline" size={18} color={colors.text.primary} />
+              <Text style={styles.menuItemText}>Histórico</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setProfileMenuVisible(false);
+                logout();
+              }}
+            >
+              <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+              <Text style={[styles.menuItemText, { color: colors.danger }]}>Sair</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
@@ -191,5 +236,36 @@ const styles = StyleSheet.create({
   messagesList: {
     paddingHorizontal: 12,
     paddingVertical: 8,
+  },
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    alignItems: 'flex-end',
+  },
+  menuPanel: {
+    marginTop: 60,
+    marginRight: 12,
+    backgroundColor: colors.ink[900],
+    borderWidth: 1,
+    borderColor: colors.ink[800],
+    borderRadius: 12,
+    minWidth: 180,
+    paddingVertical: 6,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  menuItemText: {
+    color: colors.text.primary,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: colors.ink[800],
   },
 });
