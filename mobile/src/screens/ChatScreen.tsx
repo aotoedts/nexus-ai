@@ -14,7 +14,7 @@ import { useAgentRun } from '../hooks/useAgentRun';
 import { AgentStatusPanel } from '../components/AgentStatusPanel';
 import { AgentToggle } from '../components/AgentToggle';
 import { MessageBubble } from '../components/MessageBubble';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { ChatInputBar } from '../components/ChatInputBar';
 import { HistoryDrawer } from '../components/HistoryDrawer';
 import { colors } from '../theme/colors';
@@ -86,7 +86,7 @@ export const ChatScreen: React.FC = () => {
   // Agent handlers
   const handleAgentToggle = useCallback(
     async (enabled: boolean, objective?: string) => {
-      if (enabled && objective && conversationId) {
+      if (objective && conversationId) {
         try {
           setAgentObjective(objective);
           await agentRunAPI.startAgent(conversationId, objective);
@@ -177,21 +177,17 @@ export const ChatScreen: React.FC = () => {
         </Pressable>
       </Modal>
 
-      <KeyboardAvoidingView
-        behavior="padding"
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      <FlatList
+        ref={listRef}
+        data={messages}
+        renderItem={renderMessage}
+        keyExtractor={(item) => item.id}
+        onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+        contentContainerStyle={styles.messagesList}
         style={styles.flex}
-      >
-        <FlatList
-          ref={listRef}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={(item) => item.id}
-          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
-          contentContainerStyle={styles.messagesList}
-          style={styles.flex}
-        />
+      />
 
+      <KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
         {agentRunAPI.agentRun && (
           <AgentStatusPanel
             agentRun={agentRunAPI.agentRun}
@@ -215,7 +211,7 @@ export const ChatScreen: React.FC = () => {
             />
           }
         />
-      </KeyboardAvoidingView>
+      </KeyboardStickyView>
 
       <HistoryDrawer
         visible={historyVisible}
