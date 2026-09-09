@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { colors } from './src/theme/colors';
@@ -42,12 +43,14 @@ export default function App() {
   }
 
   return (
-    <View style={styles.flex} onLayout={onLayoutRootView}>
-      <SafeAreaProvider style={styles.flex}>
-        <StatusBar style="light" backgroundColor={colors.ink[950]} />
-        <RootNavigator />
-      </SafeAreaProvider>
-    </View>
+    <KeyboardProvider>
+      <View style={styles.flex} onLayout={onLayoutRootView}>
+        <SafeAreaProvider style={styles.flex}>
+          <StatusBar style="light" backgroundColor={colors.ink[950]} />
+          <RootNavigator />
+        </SafeAreaProvider>
+      </View>
+    </KeyboardProvider>
   );
 }
 

@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   StyleSheet,
 } from 'react-native';
@@ -15,6 +14,7 @@ import { useAgentRun } from '../hooks/useAgentRun';
 import { AgentStatusPanel } from '../components/AgentStatusPanel';
 import { AgentToggle } from '../components/AgentToggle';
 import { MessageBubble } from '../components/MessageBubble';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { ChatInputBar } from '../components/ChatInputBar';
 import { HistoryDrawer } from '../components/HistoryDrawer';
 import { colors } from '../theme/colors';
