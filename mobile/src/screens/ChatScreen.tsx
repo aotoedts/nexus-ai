@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/authStore';
 import { useChat } from '../hooks/useChat';
 import { useAgentRun } from '../hooks/useAgentRun';
+import { apiClient } from '../api/client';
 import { AgentStatusPanel } from '../components/AgentStatusPanel';
 import { AgentToggle } from '../components/AgentToggle';
 import { MessageBubble } from '../components/MessageBubble';
@@ -89,6 +90,7 @@ export const ChatScreen: React.FC = () => {
       if (objective && conversationId) {
         try {
           setAgentObjective(objective);
+          await apiClient.patch('/agents/status', { agentEnabled: true });
           await agentRunAPI.startAgent(conversationId, objective);
           setAgentEnabled(true);
         } catch (error) {
