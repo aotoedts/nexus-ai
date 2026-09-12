@@ -37,6 +37,11 @@ export class RunAgentTaskUseCase {
           where: { id: run.id },
           data: { steps: result.steps as any, status: 'AWAITING_AUTHORIZATION', pendingAction: result.pendingAction as any },
         });
+      } else if (result.status === 'awaiting_device_action') {
+        await prisma.agentRun.update({
+          where: { id: run.id },
+          data: { steps: result.steps as any, status: 'AWAITING_DEVICE_ACTION', pendingAction: result.pendingAction as any },
+        });
       } else {
         await prisma.agentRun.update({
           where: { id: run.id },

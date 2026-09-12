@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
+import { AccessibilityControl } from '../components/AccessibilityControl';
 
 export function SettingsScreen() {
   const { user, logout } = useAuthStore();
@@ -64,6 +65,11 @@ export function SettingsScreen() {
             </View>
           </View>
         </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>CONTROLE DO DISPOSITIVO</Text>
+        <AccessibilityControl />
       </View>
 
       <View style={styles.section}>

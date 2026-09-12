@@ -18,13 +18,23 @@ export interface PendingAction {
 export interface AgentRunResult {
   steps: AgentStep[];
   finalAnswer: string;
-  status: 'completed' | 'failed' | 'awaiting_authorization';
+  status: 'completed' | 'failed' | 'awaiting_authorization' | 'awaiting_device_action';
   pendingAction?: PendingAction;
 }
 
 // Ferramentas que exigem autorizacao explicita do usuario antes de executar,
 // por poderem alterar estado externo (repositorio, arquivos, etc).
 const TOOLS_REQUIRING_AUTHORIZATION = new Set(['run_terminal_command']);
+
+// Ferramentas que so podem ser executadas no dispositivo do usuario (nunca
+// no servidor). O agente pausa e aguarda o app mobile reportar o resultado.
+const DEVICE_TOOLS = new Set([
+  'device_dump_screen',
+  'device_tap',
+  'device_go_home',
+  'device_go_back',
+  'ask_user_question',
+]);
 
 export class AgentExecutor {
   constructor(
@@ -80,6 +90,25 @@ export class AgentExecutor {
           if (!tool) {
             steps.push({ type: 'tool_result', content: `Ferramenta ${call.toolName} nao encontrada` });
             continue;
+          }
+
+          if (DEVICE_TOOLS.has(call.toolName)) {
+            steps.push({
+              type: 'tool_call',
+              content: `Aguardando execucao no dispositivo: ${call.toolName}`,
+              toolName: call.toolName,
+              toolArgs: call.arguments,
+            });
+            return {
+              steps,
+              finalAnswer: '',
+              status: 'awaiting_device_action',
+              pendingAction: {
+                toolName: call.toolName,
+                arguments: call.arguments,
+                description: tool.description,
+              },
+            };
           }
 
           if (TOOLS_REQUIRING_AUTHORIZATION.has(call.toolName)) {
@@ -146,6 +175,27 @@ export class AgentExecutor {
         toolName: pendingAction.toolName,
       });
     }
+
+    return this.run(goal, conversationHistory, updatedSteps);
+  }
+
+  /**
+   * Continua a execucao apos o app mobile ter realizado a acao no
+   * dispositivo e reportado o resultado de volta.
+   */
+  async continueWithDeviceResult(
+    goal: string,
+    conversationHistory: ChatMessageInput[],
+    steps: AgentStep[],
+    pendingAction: PendingAction,
+    resultData: unknown,
+  ): Promise<AgentRunResult> {
+    const updatedSteps = [...steps];
+    updatedSteps.push({
+      type: 'tool_result',
+      content: JSON.stringify({ success: true, data: resultData }),
+      toolName: pendingAction.toolName,
+    });
 
     return this.run(goal, conversationHistory, updatedSteps);
   }

@@ -43,7 +43,7 @@ export default function App() {
   }
 
   return (
-    <KeyboardProvider>
+    <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
       <View style={styles.flex} onLayout={onLayoutRootView}>
         <SafeAreaProvider style={styles.flex}>
           <StatusBar style="light" backgroundColor={colors.ink[950]} />

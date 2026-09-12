@@ -93,8 +93,12 @@ export const ChatScreen: React.FC = () => {
           await apiClient.patch('/agents/status', { agentEnabled: true });
           await agentRunAPI.startAgent(conversationId, objective);
           setAgentEnabled(true);
-        } catch (error) {
+        } catch (error: any) {
           console.error('Erro ao iniciar agente:', error);
+          Alert.alert(
+            'Erro ao iniciar agente',
+            error?.message || error?.response?.data?.message || 'Falha desconhecida ao iniciar o agente.'
+          );
         }
       } else {
         setAgentEnabled(false);

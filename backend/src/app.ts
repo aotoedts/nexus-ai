@@ -27,6 +27,13 @@ import { toolRegistry } from './core/infrastructure/tools/ToolRegistry.js';
 import { CalculatorTool } from './core/infrastructure/tools/CalculatorTool.js';
 import { WebSearchTool } from './core/infrastructure/tools/WebSearchTool.js';
 import { PdfReaderTool } from './core/infrastructure/tools/PdfReaderTool.js';
+import {
+  DeviceDumpScreenTool,
+  DeviceTapTool,
+  DeviceGoHomeTool,
+  DeviceGoBackTool,
+  AskUserQuestionTool,
+} from './core/infrastructure/tools/DeviceTools.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false, trustProxy: true });
@@ -47,6 +54,11 @@ export async function buildApp(): Promise<FastifyInstance> {
   toolRegistry.register(new CalculatorTool());
   toolRegistry.register(new WebSearchTool());
   toolRegistry.register(new PdfReaderTool());
+  toolRegistry.register(new DeviceDumpScreenTool());
+  toolRegistry.register(new DeviceTapTool());
+  toolRegistry.register(new DeviceGoHomeTool());
+  toolRegistry.register(new DeviceGoBackTool());
+  toolRegistry.register(new AskUserQuestionTool());
   logger.info({ provider: model.providerName }, 'Adaptador de IA inicializado');
 
   await app.register(

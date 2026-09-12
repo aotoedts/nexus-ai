@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { AgentExecutor } from '../../../core/infrastructure/agents/AgentExecutor.js';
 import { RunAgentTaskUseCase } from '../../../core/application/use-cases/agents/RunAgentTaskUseCase.js';
 import { AuthorizeAgentActionUseCase } from '../../../core/application/use-cases/agents/AuthorizeAgentActionUseCase.js';
+import { SubmitDeviceActionResultUseCase } from '../../../core/application/use-cases/agents/SubmitDeviceActionResultUseCase.js';
 import { ForbiddenError } from '../../../shared/errors/AppError.js';
 import { IModelAdapter } from '../../../core/infrastructure/ai/IModelAdapter.js';
 import { ToolRegistry } from '../../../core/infrastructure/tools/ToolRegistry.js';
@@ -12,11 +13,13 @@ import { prisma } from '../../../core/infrastructure/database/prisma/client.js';
 const runSchema = z.object({ conversationId: z.string().uuid(), goal: z.string().min(1) });
 const authorizeSchema = z.object({ stepId: z.string().optional(), authorized: z.boolean() });
 const cancelSchema = z.object({ action: z.literal('cancel') });
+const deviceResultSchema = z.object({ resultData: z.unknown() });
 
 const STATUS_MAP: Record<string, string> = {
   PLANNING: 'planning',
   EXECUTING: 'running',
   AWAITING_AUTHORIZATION: 'awaiting_authorization',
+  AWAITING_DEVICE_ACTION: 'awaiting_device_action',
   COMPLETED: 'completed',
   FAILED: 'error',
   CANCELLED: 'cancelled',
@@ -158,6 +161,7 @@ export async function agentsRoutes(app: FastifyInstance, opts: { model: IModelAd
   const executor = new AgentExecutor(opts.model, opts.tools);
   const runAgentTask = new RunAgentTaskUseCase(executor);
   const authorizeAgentAction = new AuthorizeAgentActionUseCase(executor);
+  const submitDeviceActionResult = new SubmitDeviceActionResultUseCase(executor);
 
   app.post('/agents/run', { onRequest: [app.authenticate] }, async (request) => {
     const body = runSchema.parse(request.body);
@@ -180,6 +184,15 @@ export async function agentsRoutes(app: FastifyInstance, opts: { model: IModelAd
     const { id } = request.params as { id: string };
     const body = authorizeSchema.parse(request.body);
     await authorizeAgentAction.execute({ userId: request.user.sub, runId: id, approved: body.authorized });
+    const run = await prisma.agentRun.findUnique({ where: { id } });
+    if (!run) throw new ForbiddenError('Execucao de agente nao encontrada.');
+    return { agentRun: mapAgentRun(run) };
+  });
+
+  app.post('/agents/run/:id/device-result', { onRequest: [app.authenticate] }, async (request) => {
+    const { id } = request.params as { id: string };
+    const body = deviceResultSchema.parse(request.body);
+    await submitDeviceActionResult.execute({ userId: request.user.sub, runId: id, resultData: body.resultData });
     const run = await prisma.agentRun.findUnique({ where: { id } });
     if (!run) throw new ForbiddenError('Execucao de agente nao encontrada.');
     return { agentRun: mapAgentRun(run) };
