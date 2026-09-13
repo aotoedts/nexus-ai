@@ -59,13 +59,20 @@ export class AgentExecutor {
     ];
 
     for (const step of steps) {
-      if (step.type === 'tool_call') {
+      if (step.type === 'tool_call' && step.toolCallId) {
         messages.push({
           role: 'assistant',
-          content: `Chamei a ferramenta ${step.toolName} com argumentos ${JSON.stringify(step.toolArgs)}`,
+          content: '',
+          tool_calls: [
+            {
+              id: step.toolCallId,
+              type: 'function',
+              function: { name: step.toolName || '', arguments: JSON.stringify(step.toolArgs || {}) },
+            },
+          ],
         });
-      } else if (step.type === 'tool_result') {
-        messages.push({ role: 'tool', content: step.content });
+      } else if (step.type === 'tool_result' && step.toolCallId) {
+        messages.push({ role: 'tool', content: step.content, tool_call_id: step.toolCallId });
       }
     }
 
