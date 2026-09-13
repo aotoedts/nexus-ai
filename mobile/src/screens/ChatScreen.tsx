@@ -188,6 +188,12 @@ export const ChatScreen: React.FC = () => {
           case 'device_go_back':
             resultData = await AccessibilityBridge.goBack();
             break;
+          case 'device_open_app':
+            resultData = await AccessibilityBridge.openApp(String(details?.appName ?? ''));
+            break;
+          case 'device_type_text':
+            resultData = await AccessibilityBridge.typeText(String(details?.text ?? ''));
+            break;
           default:
             resultData = { error: `Acao desconhecida: ${action}` };
         }

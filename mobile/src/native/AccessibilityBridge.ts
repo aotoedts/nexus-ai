@@ -7,6 +7,8 @@ interface AccessibilityModuleType {
   tap(x: number, y: number): Promise<boolean>;
   goHome(): Promise<boolean>;
   goBack(): Promise<boolean>;
+  openApp(appName: string): Promise<boolean>;
+  typeText(text: string): Promise<boolean>;
 }
 
 const { AccessibilityModule } = NativeModules as {
@@ -37,4 +39,8 @@ export const AccessibilityBridge = {
   goHome: (): Promise<boolean> => AccessibilityModule.goHome(),
 
   goBack: (): Promise<boolean> => AccessibilityModule.goBack(),
+
+  openApp: (appName: string): Promise<boolean> => AccessibilityModule.openApp(appName),
+
+  typeText: (text: string): Promise<boolean> => AccessibilityModule.typeText(text),
 };
