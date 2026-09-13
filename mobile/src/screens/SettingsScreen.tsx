@@ -132,7 +132,7 @@ export function SettingsScreen() {
         <Text style={styles.logoutText}>Sair da conta</Text>
       </TouchableOpacity>
 
-      <Text style={styles.version}>Nexus AI · v{appVersion}</Text>
+      <Text style={styles.version}>Copiloto AI · v{appVersion}</Text>
     </ScrollView>
   );
 }

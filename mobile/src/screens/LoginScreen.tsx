@@ -53,7 +53,7 @@ export function LoginScreen() {
     >
       <View style={styles.logoBlock}>
         <View style={styles.logoIcon} />
-        <Text style={styles.brand}>Nexus AI</Text>
+        <Text style={styles.brand}>Copiloto AI</Text>
         <Text style={styles.subtitle}>Seu assistente pessoal inteligente</Text>
       </View>
 

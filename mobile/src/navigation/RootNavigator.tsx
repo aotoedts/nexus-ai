@@ -39,7 +39,7 @@ function ChatStackNavigator() {
       <ChatStack.Screen
         name="Chat"
         component={ChatScreen}
-        options={{ title: 'Nexus AI', keyboardHandlingEnabled: false }}
+        options={{ title: 'Copiloto AI', keyboardHandlingEnabled: false }}
       />
       <ChatStack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Configurações' }} />
     </ChatStack.Navigator>

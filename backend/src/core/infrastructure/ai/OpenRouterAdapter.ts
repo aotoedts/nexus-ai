@@ -1,3 +1,4 @@
+import { logger } from '../../../config/logger.js';
 import {
   IModelAdapter,
   ChatMessageInput,
@@ -5,10 +6,17 @@ import {
   CompletionResult,
 } from './IModelAdapter.js';
 
+interface OpenRouterToolCall {
+  id: string;
+  type: 'function';
+  function: { name: string; arguments: string };
+}
+
 interface OpenRouterResponse {
   choices: Array<{
-    message?: { content: string };
+    message?: { content: string | null; tool_calls?: OpenRouterToolCall[] };
     delta?: { content?: string };
+    finish_reason?: string;
   }>;
   usage?: {
     prompt_tokens: number;
@@ -40,6 +48,24 @@ export class OpenRouterAdapter implements IModelAdapter {
         content: typeof msg.content === 'string' ? msg.content : msg.content[0]?.text || '',
       }));
 
+      const body: Record<string, unknown> = {
+        model: this.modelName,
+        messages: formattedMessages,
+        max_tokens: options?.maxTokens || 1024,
+        temperature: options?.temperature ?? 0.7,
+      };
+
+      if (options?.tools && options.tools.length > 0) {
+        body.tools = options.tools.map((t) => ({
+          type: 'function',
+          function: {
+            name: t.name,
+            description: t.description,
+            parameters: t.parameters,
+          },
+        }));
+      }
+
       const response = await fetch(`${this.baseURL}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -48,12 +74,7 @@ export class OpenRouterAdapter implements IModelAdapter {
           'HTTP-Referer': 'https://nexus-ai.com',
           'X-Title': 'Nexus AI',
         },
-        body: JSON.stringify({
-          model: this.modelName,
-          messages: formattedMessages,
-          max_tokens: options?.maxTokens || 1024,
-          temperature: options?.temperature ?? 0.7,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -62,12 +83,24 @@ export class OpenRouterAdapter implements IModelAdapter {
       }
 
       const data = (await response.json()) as OpenRouterResponse;
-      const content = data.choices[0]?.message?.content || '';
+      const message = data.choices[0]?.message;
+      const content = message?.content || '';
+      const rawToolCalls = message?.tool_calls || [];
+
+      const toolCalls = rawToolCalls.map((tc) => {
+        let parsedArgs: Record<string, unknown> = {};
+        try {
+          parsedArgs = JSON.parse(tc.function.arguments);
+        } catch {
+          logger.warn({ raw: tc.function.arguments }, 'Falha ao parsear argumentos da tool_call');
+        }
+        return { toolName: tc.function.name, arguments: parsedArgs };
+      });
 
       return {
         content,
-        toolCalls: [],
-        finishReason: 'stop',
+        toolCalls,
+        finishReason: toolCalls.length > 0 ? 'tool_call' : 'stop',
         usage: {
           promptTokens: data.usage?.prompt_tokens || 0,
           completionTokens: data.usage?.completion_tokens || 0,
