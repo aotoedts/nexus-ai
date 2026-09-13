@@ -1,6 +1,8 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { v4 as uuid } from 'uuid';
 import { PrismaConversationRepository } from '../../../core/infrastructure/repositories/PrismaConversationRepository.js';
+import { Conversation } from '../../../core/domain/entities/Conversation.js';
 import { NotFoundError, ForbiddenError } from '../../../shared/errors/AppError.js';
 
 export async function conversationsRoutes(app: FastifyInstance) {
@@ -9,6 +11,19 @@ export async function conversationsRoutes(app: FastifyInstance) {
   app.get('/conversations', { onRequest: [app.authenticate] }, async (request) => {
     const conversations = await repository.listByUser(request.user.sub);
     return { conversations };
+  });
+
+  app.post('/conversations', { onRequest: [app.authenticate] }, async (request) => {
+    const body = z.object({ title: z.string().min(1).max(100).optional() }).parse(request.body ?? {});
+    const conversation = Conversation.create({
+      id: uuid(),
+      title: body.title ?? 'Nova conversa',
+      userId: request.user.sub,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const created = await repository.create(conversation);
+    return { conversation: created };
   });
 
   app.get('/conversations/:id/messages', { onRequest: [app.authenticate] }, async (request) => {

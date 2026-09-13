@@ -89,11 +89,19 @@ export const ChatScreen: React.FC = () => {
   // Agent handlers
   const handleAgentToggle = useCallback(
     async (enabled: boolean, objective?: string) => {
-      if (objective && conversationId) {
+      if (objective) {
         try {
+          let activeConversationId = conversationId;
+
+          if (!activeConversationId) {
+            const response = await apiClient.post('/conversations', {});
+            activeConversationId = response.data.conversation.id;
+            setConversationId(activeConversationId);
+          }
+
           setAgentObjective(objective);
           await apiClient.patch('/agents/status', { agentEnabled: true });
-          await agentRunAPI.startAgent(conversationId, objective);
+          await agentRunAPI.startAgent(activeConversationId as string, objective);
           setAgentEnabled(true);
         } catch (error: any) {
           console.error('Erro ao iniciar agente:', error);
