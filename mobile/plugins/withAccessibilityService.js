@@ -253,7 +253,23 @@ class AccessibilityPackage : ReactPackage {
 
 function withAccessibilityServiceManifest(config) {
   return withAndroidManifest(config, (config) => {
-    const app = config.modResults.manifest.application[0];
+    const manifest = config.modResults.manifest;
+    const app = manifest.application[0];
+
+    // Necessario desde o Android 11 (API 30): sem isso, PackageManager.getInstalledApplications()
+    // retorna uma lista vazia/filtrada e o openApp() nunca encontra o app pelo nome.
+    if (!manifest.queries) manifest.queries = [{}];
+    const queries = manifest.queries[0];
+    if (!queries.intent) queries.intent = [];
+    const hasLauncherQuery = queries.intent.some((i) =>
+      (i.action || []).some((a) => a['$']['android:name'] === 'android.intent.action.MAIN')
+    );
+    if (!hasLauncherQuery) {
+      queries.intent.push({
+        action: [{ $: { 'android:name': 'android.intent.action.MAIN' } }],
+        category: [{ $: { 'android:name': 'android.intent.category.LAUNCHER' } }],
+      });
+    }
 
     if (!app.service) app.service = [];
 
