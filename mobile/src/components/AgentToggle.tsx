@@ -7,6 +7,8 @@ import {
   TextInput,
   StyleSheet,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 
 interface AgentToggleProps {
@@ -74,7 +76,10 @@ export const AgentToggle: React.FC<AgentToggleProps> = ({
         animationType="slide"
         onRequestClose={() => setShowObjectiveModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Qual é o objetivo?</Text>
             <Text style={styles.modalDescription}>
@@ -118,7 +123,7 @@ export const AgentToggle: React.FC<AgentToggleProps> = ({
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );
