@@ -3,6 +3,7 @@ export type AgentRunStatus =
   | 'planning'
   | 'running'
   | 'awaiting_authorization'
+  | 'awaiting_device_action'
   | 'completed'
   | 'error'
   | 'cancelled';

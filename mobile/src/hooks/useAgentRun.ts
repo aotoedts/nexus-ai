@@ -14,6 +14,7 @@ interface UseAgentRunReturn {
   
   startAgent: (conversationId: string, objective: string) => Promise<AgentRun>;
   authorizeStep: (runId: string, stepId: string, authorized: boolean) => Promise<AgentRun>;
+  submitDeviceResult: (runId: string, resultData: unknown) => Promise<AgentRun>;
   cancelAgent: (runId: string) => Promise<void>;
   fetchStatus: (runId: string) => Promise<AgentRun>;
   clearAgent: () => void;
@@ -115,6 +116,27 @@ export const useAgentRun = (options: UseAgentRunOptions): UseAgentRunReturn => {
     }
   }, [makeRequest]);
 
+  const submitDeviceResult = useCallback(async (runId: string, resultData: unknown) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const data = await makeRequest(`/api/v1/agents/run/${runId}/device-result`, 'POST', {
+        resultData,
+      });
+
+      setAgentRun(data.agentRun);
+
+      if (data.agentRun.status === 'running') {
+        startPolling(runId);
+      }
+
+      return data.agentRun;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [makeRequest]);
+
   const cancelAgent = useCallback(async (runId: string) => {
     try {
       setIsLoading(true);
@@ -162,6 +184,7 @@ export const useAgentRun = (options: UseAgentRunOptions): UseAgentRunReturn => {
     error,
     startAgent,
     authorizeStep,
+    submitDeviceResult,
     cancelAgent,
     fetchStatus,
     clearAgent,
