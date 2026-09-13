@@ -5,7 +5,6 @@ import {
   Platform,
   StyleSheet,
   TextInput,
-  KeyboardAvoidingView,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { TouchableOpacity, Modal, Pressable, Text, Alert } from 'react-native';
@@ -18,7 +17,7 @@ import { AccessibilityBridge } from '../native/AccessibilityBridge';
 import { AgentStatusPanel } from '../components/AgentStatusPanel';
 import { AgentToggle } from '../components/AgentToggle';
 import { MessageBubble } from '../components/MessageBubble';
-import { KeyboardStickyView } from 'react-native-keyboard-controller';
+import { KeyboardStickyView, KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { ChatInputBar } from '../components/ChatInputBar';
 import { HistoryDrawer } from '../components/HistoryDrawer';
 import { colors } from '../theme/colors';
@@ -268,7 +267,7 @@ export const ChatScreen: React.FC = () => {
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'android' ? 'height' : 'padding'}
+        behavior="padding"
       >
         <FlatList
           ref={listRef}
