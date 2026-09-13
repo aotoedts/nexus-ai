@@ -4,9 +4,17 @@ export interface ChatMessageContentPart {
   image_url?: { url: string };
 }
 
+export interface ToolCallRequest {
+  id: string;
+  type: 'function';
+  function: { name: string; arguments: string };
+}
+
 export interface ChatMessageInput {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string | ChatMessageContentPart[];
+  tool_calls?: ToolCallRequest[];
+  tool_call_id?: string;
 }
 
 export interface ToolDefinition {
@@ -18,6 +26,7 @@ export interface ToolDefinition {
 export interface ModelToolCall {
   toolName: string;
   arguments: Record<string, unknown>;
+  id: string;
 }
 
 export interface CompletionResult {

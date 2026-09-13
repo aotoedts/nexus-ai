@@ -43,10 +43,15 @@ export class OpenRouterAdapter implements IModelAdapter {
     options?: CompletionOptions
   ): Promise<CompletionResult> {
     try {
-      const formattedMessages = messages.map((msg) => ({
-        role: msg.role,
-        content: typeof msg.content === 'string' ? msg.content : msg.content[0]?.text || '',
-      }));
+      const formattedMessages = messages.map((msg) => {
+        const base: Record<string, unknown> = {
+          role: msg.role,
+          content: typeof msg.content === 'string' ? msg.content : msg.content[0]?.text || '',
+        };
+        if (msg.tool_calls) base.tool_calls = msg.tool_calls;
+        if (msg.tool_call_id) base.tool_call_id = msg.tool_call_id;
+        return base;
+      });
 
       const body: Record<string, unknown> = {
         model: this.modelName,
@@ -94,7 +99,7 @@ export class OpenRouterAdapter implements IModelAdapter {
         } catch {
           logger.warn({ raw: tc.function.arguments }, 'Falha ao parsear argumentos da tool_call');
         }
-        return { toolName: tc.function.name, arguments: parsedArgs };
+        return { toolName: tc.function.name, arguments: parsedArgs, id: tc.id };
       });
 
       return {

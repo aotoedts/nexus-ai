@@ -7,6 +7,7 @@ export interface AgentStep {
   content: string;
   toolName?: string;
   toolArgs?: Record<string, unknown>;
+  toolCallId?: string;
 }
 
 export interface PendingAction {
@@ -100,6 +101,7 @@ export class AgentExecutor {
               content: `Aguardando execucao no dispositivo: ${call.toolName}`,
               toolName: call.toolName,
               toolArgs: call.arguments,
+                toolCallId: call.id,
             });
             return {
               steps,
@@ -119,6 +121,7 @@ export class AgentExecutor {
               content: `Aguardando autorizacao para ${call.toolName}`,
               toolName: call.toolName,
               toolArgs: call.arguments,
+                toolCallId: call.id,
             });
             return {
               steps,
@@ -132,15 +135,22 @@ export class AgentExecutor {
             };
           }
 
-          steps.push({ type: 'tool_call', content: `Chamando ${call.toolName}`, toolName: call.toolName, toolArgs: call.arguments });
+            steps.push({ type: 'tool_call', content: `Chamando ${call.toolName}`, toolName: call.toolName, toolArgs: call.arguments, toolCallId: call.id });
           const toolResult = await tool.execute(call.arguments);
-          steps.push({ type: 'tool_result', content: JSON.stringify(toolResult), toolName: call.toolName });
+            steps.push({ type: 'tool_result', content: JSON.stringify(toolResult), toolName: call.toolName, toolCallId: call.id });
 
-          messages.push({
-            role: 'assistant',
-            content: `Chamei a ferramenta ${call.toolName} com argumentos ${JSON.stringify(call.arguments)}`,
-          });
-          messages.push({ role: 'tool', content: JSON.stringify(toolResult) });
+            messages.push({
+              role: 'assistant',
+              content: '',
+              tool_calls: [
+                {
+                  id: call.id,
+                  type: 'function',
+                  function: { name: call.toolName, arguments: JSON.stringify(call.arguments) },
+                },
+              ],
+            });
+            messages.push({ role: 'tool', content: JSON.stringify(toolResult), tool_call_id: call.id });
         }
         continue;
       }
@@ -167,15 +177,19 @@ export class AgentExecutor {
     const updatedSteps = [...steps];
     const tool = this.tools.get(pendingAction.toolName);
 
+      const lastCallStep = [...steps].reverse().find((s) => s.type === 'tool_call' && s.toolName === pendingAction.toolName);
+      const toolCallId = lastCallStep?.toolCallId;
+
     if (approved && tool) {
       const toolResult = await tool.execute(pendingAction.arguments);
-      updatedSteps.push({ type: 'tool_result', content: JSON.stringify(toolResult), toolName: pendingAction.toolName });
+        updatedSteps.push({ type: 'tool_result', content: JSON.stringify(toolResult), toolName: pendingAction.toolName, toolCallId });
     } else {
       updatedSteps.push({
         type: 'tool_result',
         content: 'Acao rejeitada pelo usuario.',
         toolName: pendingAction.toolName,
-      });
+          toolCallId,
+        });
     }
 
     return this.run(goal, conversationHistory, updatedSteps);
@@ -193,10 +207,12 @@ export class AgentExecutor {
     resultData: unknown,
   ): Promise<AgentRunResult> {
     const updatedSteps = [...steps];
+    const lastCallStep = [...steps].reverse().find((s) => s.type === 'tool_call' && s.toolName === pendingAction.toolName);
     updatedSteps.push({
       type: 'tool_result',
       content: JSON.stringify({ success: true, data: resultData }),
       toolName: pendingAction.toolName,
+      toolCallId: lastCallStep?.toolCallId,
     });
 
     return this.run(goal, conversationHistory, updatedSteps);
