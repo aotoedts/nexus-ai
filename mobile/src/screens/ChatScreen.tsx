@@ -5,6 +5,7 @@ import {
   Platform,
   StyleSheet,
   TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { TouchableOpacity, Modal, Pressable, Text, Alert } from 'react-native';
@@ -265,17 +266,20 @@ export const ChatScreen: React.FC = () => {
         </Pressable>
       </Modal>
 
-      <FlatList
-        ref={listRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
-        onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
-        contentContainerStyle={styles.messagesList}
+      <KeyboardAvoidingView
         style={styles.flex}
-      />
+        behavior={Platform.OS === 'android' ? 'height' : 'padding'}
+      >
+        <FlatList
+          ref={listRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.id}
+          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+          contentContainerStyle={styles.messagesList}
+          style={styles.flex}
+        />
 
-      <KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
         {agentRunAPI.agentRun && (
           <AgentStatusPanel
             agentRun={agentRunAPI.agentRun}
@@ -299,7 +303,7 @@ export const ChatScreen: React.FC = () => {
             />
           }
         />
-      </KeyboardStickyView>
+      </KeyboardAvoidingView>
 
       <HistoryDrawer
         visible={historyVisible}

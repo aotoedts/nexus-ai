@@ -19,7 +19,9 @@ const KOTLIN_SERVICE = `package com.nexusai
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
+import android.content.Intent
 import android.graphics.Path
+import android.os.Bundle
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -94,6 +96,50 @@ class CopilotAccessibilityService : AccessibilityService() {
     fun goBack(): Boolean {
         return performGlobalAction(GLOBAL_ACTION_BACK)
     }
+
+    fun openApp(appName: String): Boolean {
+        val pm = packageManager
+        val apps = pm.getInstalledApplications(0)
+        val target = apps.firstOrNull { app ->
+            pm.getApplicationLabel(app).toString().equals(appName, ignoreCase = true)
+        } ?: apps.firstOrNull { app ->
+            pm.getApplicationLabel(app).toString().contains(appName, ignoreCase = true)
+        }
+
+        if (target == null) {
+            Log.d(TAG, "App nao encontrado: $appName")
+            return false
+        }
+
+        val launchIntent = pm.getLaunchIntentForPackage(target.packageName) ?: return false
+        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(launchIntent)
+        return true
+    }
+
+    fun typeText(text: String): Boolean {
+        val root = rootInActiveWindow ?: return false
+        val focused = findFocusedEditable(root) ?: return false
+        val arguments = Bundle()
+        arguments.putCharSequence(
+            AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+            text
+        )
+        return focused.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
+    }
+
+    private fun findFocusedEditable(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        if (node.isFocused && node.isEditable) {
+            return node
+        }
+        for (i in 0 until node.childCount) {
+            node.getChild(i)?.let { child ->
+                val result = findFocusedEditable(child)
+                if (result != null) return result
+            }
+        }
+        return null
+    }
 }
 `;
 
@@ -163,6 +209,26 @@ class AccessibilityModule(reactContext: ReactApplicationContext) :
             return
         }
         promise.resolve(service.goBack())
+    }
+
+    @ReactMethod
+    fun openApp(appName: String, promise: Promise) {
+        val service = CopilotAccessibilityService.instance
+        if (service == null) {
+            promise.reject("NO_SERVICE", "Servico de acessibilidade nao esta ativo")
+            return
+        }
+        promise.resolve(service.openApp(appName))
+    }
+
+    @ReactMethod
+    fun typeText(text: String, promise: Promise) {
+        val service = CopilotAccessibilityService.instance
+        if (service == null) {
+            promise.reject("NO_SERVICE", "Servico de acessibilidade nao esta ativo")
+            return
+        }
+        promise.resolve(service.typeText(text))
     }
 }
 `;
