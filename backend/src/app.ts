@@ -33,6 +33,8 @@ import {
   DeviceGoHomeTool,
   DeviceGoBackTool,
   AskUserQuestionTool,
+  DeviceOpenAppTool,
+  DeviceTypeTextTool,
 } from './core/infrastructure/tools/DeviceTools.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
@@ -59,6 +61,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   toolRegistry.register(new DeviceGoHomeTool());
   toolRegistry.register(new DeviceGoBackTool());
   toolRegistry.register(new AskUserQuestionTool());
+  toolRegistry.register(new DeviceOpenAppTool());
+  toolRegistry.register(new DeviceTypeTextTool());
   logger.info({ provider: model.providerName }, 'Adaptador de IA inicializado');
 
   await app.register(

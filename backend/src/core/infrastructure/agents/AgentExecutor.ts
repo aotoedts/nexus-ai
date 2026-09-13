@@ -33,6 +33,8 @@ const DEVICE_TOOLS = new Set([
   'device_tap',
   'device_go_home',
   'device_go_back',
+  'device_open_app',
+  'device_type_text',
   'ask_user_question',
 ]);
 

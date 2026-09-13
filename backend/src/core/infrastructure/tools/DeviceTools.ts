@@ -60,6 +60,40 @@ export class DeviceGoBackTool implements ITool {
   }
 }
 
+export class DeviceOpenAppTool implements ITool {
+  readonly name = 'device_open_app';
+  readonly description =
+    'Abre um aplicativo no celular do usuario pelo nome (ex: "YouTube", "WhatsApp", "Instagram"). ' +
+    'Use isso em vez de tentar navegar manualmente pela home quando precisar abrir um app especifico.';
+  readonly parametersSchema = {
+    type: 'object',
+    properties: {
+      appName: { type: 'string', description: 'Nome do aplicativo a ser aberto, ex: "YouTube"' },
+    },
+    required: ['appName'],
+  };
+  async execute(): Promise<ToolResult> {
+    return deviceOnlyResult();
+  }
+}
+
+export class DeviceTypeTextTool implements ITool {
+  readonly name = 'device_type_text';
+  readonly description =
+    'Digita um texto no campo de entrada atualmente focado na tela do celular do usuario. ' +
+    'Use device_dump_screen e device_tap antes para garantir que o campo certo esta focado.';
+  readonly parametersSchema = {
+    type: 'object',
+    properties: {
+      text: { type: 'string', description: 'Texto a ser digitado no campo focado' },
+    },
+    required: ['text'],
+  };
+  async execute(): Promise<ToolResult> {
+    return deviceOnlyResult();
+  }
+}
+
 export class AskUserQuestionTool implements ITool {
   readonly name = 'ask_user_question';
   readonly description =
