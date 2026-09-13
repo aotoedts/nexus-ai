@@ -39,6 +39,8 @@ export class PrismaConversationRepository implements IConversationRepository {
         conversationId: message.conversationId,
         role: message.role,
         content: message.content,
+        toolCalls: message.toolCalls as any,
+        metadata: message.metadata as any,
       },
     });
     await prisma.conversation.update({

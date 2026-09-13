@@ -8,12 +8,13 @@ export interface ChatMessage {
   conversationId: string;
   role: 'USER' | 'ASSISTANT' | 'SYSTEM' | 'TOOL';
   content: string;
+  metadata?: { imageUrl?: string; prompt?: string } | null;
   createdAt: string;
 }
 
 type WsEvent =
   | { type: 'token'; token: string }
-  | { type: 'done'; conversationId: string; message: string }
+  | { type: 'done'; conversationId: string; message: string; imageUrl?: string }
   | { type: 'error'; message: string };
 
 /**
@@ -45,7 +46,7 @@ export function useChat(conversationId: string | undefined) {
 
   const sendViaWebSocket = useCallback(
     (content: string, currentConversationId: string | undefined, images?: string[], _files?: unknown[]) =>
-      new Promise<{ conversationId: string; content: string }>((resolve, reject) => {
+      new Promise<{ conversationId: string; content: string; imageUrl?: string }>((resolve, reject) => {
         const socket = wsRef.current;
         if (!socket || socket.readyState !== WebSocket.OPEN) { reject(new Error('WebSocket indisponivel')); return; }
 
@@ -74,7 +75,7 @@ export function useChat(conversationId: string | undefined) {
             if (settled) return;
             settled = true;
             cleanup();
-            resolve({ conversationId: data.conversationId, content: data.message });
+              resolve({ conversationId: data.conversationId, content: data.message, imageUrl: data.imageUrl });
           } else if (data.type === 'error') {
             if (settled) return;
             settled = true;
@@ -105,7 +106,17 @@ export function useChat(conversationId: string | undefined) {
       setMessages((prev) => [...prev, optimisticMessage]);
       try {
         const result = await sendViaWebSocket(content, currentConversationId, images);
-        setMessages((prev) => [...prev, { id: `assistant-${Date.now()}`, conversationId: result.conversationId, role: 'ASSISTANT', content: result.content, createdAt: new Date().toISOString() }]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `assistant-${Date.now()}`,
+            conversationId: result.conversationId,
+            role: 'ASSISTANT',
+            content: result.content,
+            metadata: result.imageUrl ? { imageUrl: result.imageUrl } : undefined,
+            createdAt: new Date().toISOString(),
+          },
+        ]);
         return result.conversationId;
       } catch {
         const response = await apiClient.post('/chat/messages', { conversationId: currentConversationId, content, images });

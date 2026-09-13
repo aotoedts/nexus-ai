@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { colors } from '../theme/colors';
 import { ChatMessage } from '../hooks/useChat';
 
@@ -12,6 +12,13 @@ export function MessageBubble({ message }: Props) {
     <View style={[styles.row, isUser ? styles.rowUser : styles.rowAssistant]}>
       {!isUser && <View style={styles.dot} />}
       <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAssistant]}>
+        {message.metadata?.imageUrl && (
+          <Image
+            source={{ uri: message.metadata.imageUrl }}
+            style={styles.generatedImage}
+            resizeMode="cover"
+          />
+        )}
         <Text style={styles.text}>{message.content}</Text>
         <Text style={styles.time}>{time}</Text>
       </View>
@@ -29,4 +36,5 @@ const styles = StyleSheet.create({
   bubbleAssistant: { backgroundColor: colors.ink[800], borderTopLeftRadius: 4, borderWidth: 1, borderColor: colors.ink[700] },
   text: { color: colors.text.primary, fontSize: 15, lineHeight: 21 },
   time: { color: colors.text.muted, fontSize: 10, marginTop: 6, textTransform: 'uppercase' },
+  generatedImage: { width: '100%', aspectRatio: 1, borderRadius: 10, marginBottom: 8 },
 });

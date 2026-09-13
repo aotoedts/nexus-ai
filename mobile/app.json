@@ -44,7 +44,14 @@
         }
       ],
       "expo-font",
-      "./plugins/withAccessibilityService.js"
+      "./plugins/withAccessibilityService.js",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "O Copiloto AI precisa do microfone para ouvir seus comandos de voz.",
+          "speechRecognitionPermission": "O Copiloto AI precisa de reconhecimento de fala para converter sua voz em texto."
+        }
+      ]
     ],
     "extra": {
       "eas": {

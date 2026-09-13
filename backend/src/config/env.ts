@@ -31,6 +31,7 @@ const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().default(''),
   ANTHROPIC_MODEL_NAME: z.string().default('claude-sonnet-5'),
   OPENROUTER_API_KEY: z.string().default(''),
+  IMAGE_GENERATION_MODEL: z.string().default('google/gemini-2.5-flash-image-preview'),
   AGENT_WORKSPACE_DIR: z.string().default('/tmp/agent-workspace'),
   AGENT_REPO_URL: z.string().default(''),
   AI_EMBEDDING_DIM: z.coerce.number().default(1536),

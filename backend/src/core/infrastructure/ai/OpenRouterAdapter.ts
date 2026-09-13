@@ -15,7 +15,7 @@ interface OpenRouterToolCall {
 interface OpenRouterResponse {
   choices: Array<{
     message?: { content: string | null; tool_calls?: OpenRouterToolCall[] };
-    delta?: { content?: string };
+    delta?: { content?: string; tool_calls?: unknown };
     finish_reason?: string;
   }>;
   usage?: {
@@ -143,6 +143,14 @@ export class OpenRouterAdapter implements IModelAdapter {
           stream: true,
           max_tokens: options?.maxTokens || 1024,
           temperature: options?.temperature ?? 0.7,
+          ...(options?.tools && options.tools.length > 0
+            ? {
+                tools: options.tools.map((t) => ({
+                  type: 'function',
+                  function: { name: t.name, description: t.description, parameters: t.parameters },
+                })),
+              }
+            : {}),
         }),
       });
 
@@ -158,6 +166,7 @@ export class OpenRouterAdapter implements IModelAdapter {
       let totalContent = '';
       let promptTokens = 0;
       let completionTokens = 0;
+        const toolCallAcc: Record<number, { id: string; name: string; arguments: string }> = {};
 
       while (true) {
         const { done, value } = await reader.read();
@@ -174,6 +183,19 @@ export class OpenRouterAdapter implements IModelAdapter {
 
           try {
             const json = JSON.parse(data) as OpenRouterResponse;
+              const deltaToolCalls = json.choices[0]?.delta?.tool_calls as
+                | Array<{ index: number; id?: string; function?: { name?: string; arguments?: string } }>
+                | undefined;
+              if (deltaToolCalls) {
+                for (const dtc of deltaToolCalls) {
+                  if (!toolCallAcc[dtc.index]) {
+                    toolCallAcc[dtc.index] = { id: dtc.id || '', name: '', arguments: '' };
+                  }
+                  if (dtc.id) toolCallAcc[dtc.index].id = dtc.id;
+                  if (dtc.function?.name) toolCallAcc[dtc.index].name += dtc.function.name;
+                  if (dtc.function?.arguments) toolCallAcc[dtc.index].arguments += dtc.function.arguments;
+                }
+              }
             const token = json.choices[0]?.delta?.content || '';
             if (token) {
               totalContent += token;
@@ -189,15 +211,27 @@ export class OpenRouterAdapter implements IModelAdapter {
         }
       }
 
-      return {
-        content: totalContent,
-        toolCalls: [],
-        finishReason: 'stop',
-        usage: {
-          promptTokens,
-          completionTokens,
-        },
-      };
+        const toolCalls = Object.values(toolCallAcc)
+          .filter((tc) => tc.name)
+          .map((tc) => {
+            let parsedArgs: Record<string, unknown> = {};
+            try {
+              parsedArgs = JSON.parse(tc.arguments);
+            } catch {
+              logger.warn({ raw: tc.arguments }, 'Falha ao parsear argumentos da tool_call (stream)');
+            }
+            return { toolName: tc.name, arguments: parsedArgs, id: tc.id };
+          });
+
+        return {
+          content: totalContent,
+          toolCalls,
+          finishReason: toolCalls.length > 0 ? 'tool_call' : 'stop',
+          usage: {
+            promptTokens,
+            completionTokens,
+          },
+        };
     } catch (error) {
       throw new Error(
         `OpenRouterAdapter.stream: ${error instanceof Error ? error.message : 'Unknown error'}`

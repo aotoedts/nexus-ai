@@ -6,6 +6,8 @@ import { SendMessageUseCase } from '../../../core/application/use-cases/chat/Sen
 import { SaveMemoryUseCase } from '../../../core/application/use-cases/memory/SaveMemoryUseCase.js';
 import { RetrieveRelevantMemoriesUseCase } from '../../../core/application/use-cases/memory/RetrieveRelevantMemoriesUseCase.js';
 import { IModelAdapter } from '../../../core/infrastructure/ai/IModelAdapter.js';
+import { ImageGenerationService } from '../../../core/infrastructure/ai/ImageGenerationService.js';
+import { env } from '../../../config/env.js';
 import { JwtPayload } from '../plugins/auth.plugin.js';
 
 const sendMessageSchema = z
@@ -23,7 +25,16 @@ export async function chatRoutes(app: FastifyInstance, opts: { model: IModelAdap
   const memoryRepository = new PrismaMemoryRepository();
   const saveMemory = new SaveMemoryUseCase(memoryRepository, opts.model);
   const retrieveMemories = new RetrieveRelevantMemoriesUseCase(memoryRepository, opts.model);
-  const sendMessage = new SendMessageUseCase(conversationRepository, opts.model, retrieveMemories, saveMemory);
+  const imageGenerationService = env.OPENROUTER_API_KEY
+    ? new ImageGenerationService(env.OPENROUTER_API_KEY, env.IMAGE_GENERATION_MODEL)
+    : undefined;
+  const sendMessage = new SendMessageUseCase(
+    conversationRepository,
+    opts.model,
+    retrieveMemories,
+    saveMemory,
+    imageGenerationService,
+  );
 
   app.post('/chat/messages', { onRequest: [app.authenticate] }, async (request) => {
     const body = sendMessageSchema.parse(request.body);
@@ -51,7 +62,13 @@ export async function chatRoutes(app: FastifyInstance, opts: { model: IModelAdap
           ...payload,
           onToken: (token) => socket.send(JSON.stringify({ type: 'token', token })),
         });
-        socket.send(JSON.stringify({ type: 'done', conversationId: result.conversationId, message: result.assistantMessage.content }));
+        const imageUrl = (result.assistantMessage.metadata as any)?.imageUrl;
+        socket.send(JSON.stringify({
+          type: 'done',
+          conversationId: result.conversationId,
+          message: result.assistantMessage.content,
+          imageUrl,
+        }));
       } catch (err) {
         socket.send(JSON.stringify({ type: 'error', message: (err as Error).message }));
       }

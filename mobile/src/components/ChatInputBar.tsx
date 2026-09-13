@@ -12,6 +12,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import {
+  ExpoSpeechRecognitionModule,
+  useSpeechRecognitionEvent,
+} from 'expo-speech-recognition';
 import { colors } from '../theme/colors';
 
 interface ChatInputBarProps {
@@ -28,6 +32,42 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   const [message, setMessage] = useState('');
   const [isPickingImage, setIsPickingImage] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+
+  useSpeechRecognitionEvent('result', (event) => {
+    const transcript = event.results[0]?.transcript;
+    if (transcript) {
+      setMessage(transcript);
+    }
+  });
+
+  useSpeechRecognitionEvent('end', () => {
+    setIsListening(false);
+  });
+
+  useSpeechRecognitionEvent('error', (event) => {
+    console.error('Erro no reconhecimento de voz:', event.error, event.message);
+    setIsListening(false);
+  });
+
+  const handleMicPress = async () => {
+    if (isListening) {
+      ExpoSpeechRecognitionModule.stop();
+      return;
+    }
+
+    const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (!permission.granted) {
+      return;
+    }
+
+    setIsListening(true);
+    ExpoSpeechRecognitionModule.start({
+      lang: 'pt-BR',
+      interimResults: true,
+      continuous: false,
+    });
+  };
 
   const handleSend = () => {
     if (message.trim() && !disabled) {
@@ -120,6 +160,18 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
             editable={!disabled}
           />
         </View>
+
+          <TouchableOpacity
+            style={[styles.iconButton, disabled && styles.iconButtonDisabled]}
+            onPress={handleMicPress}
+            disabled={disabled}
+          >
+            <Ionicons
+              name={isListening ? 'mic' : 'mic-outline'}
+              size={24}
+              color={isListening ? '#EF4444' : colors.signal[400]}
+            />
+          </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.iconButton, disabled && styles.iconButtonDisabled]}
