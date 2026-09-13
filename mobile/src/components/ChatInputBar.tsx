@@ -8,6 +8,7 @@ import {
   Modal,
   Pressable,
   Text,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -48,6 +49,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   useSpeechRecognitionEvent('error', (event) => {
     console.error('Erro no reconhecimento de voz:', event.error, event.message);
     setIsListening(false);
+    Alert.alert('Erro no reconhecimento de voz', `${event.error}: ${event.message || 'sem detalhes'}`);
   });
 
   const handleMicPress = async () => {
