@@ -2,7 +2,6 @@
   "expo": {
     "name": "Copiloto AI",
     "slug": "isaias1t7",
-    "owner": "isaias1t7s-team",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -18,7 +17,11 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.nexusai"
+      "bundleIdentifier": "com.nexusai",
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "O Copiloto AI precisa de reconhecimento de fala para converter sua voz em texto.",
+        "NSMicrophoneUsageDescription": "O Copiloto AI precisa do microfone para ouvir seus comandos de voz."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -55,8 +58,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "8ca94d52-d174-49c7-b895-b784a36fe634"
+        "projectId": "fea522f5-f8ce-4dbe-9609-977fa3629c90"
       }
-    }
+    },
+    "owner": "copilotoai"
   }
 }
