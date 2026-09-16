@@ -275,20 +275,23 @@ export const ChatScreen: React.FC = () => {
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
         contentContainerStyle={styles.messagesList}
         style={styles.flex}
-        ListFooterComponent={<Animated.View style={{ height: keyboardAnim.height }} />}
+        ListFooterComponent={
+          <>
+            {agentRunAPI.agentRun && (
+              <AgentStatusPanel
+                agentRun={agentRunAPI.agentRun}
+                isLoading={agentRunAPI.isLoading}
+                onAuthorize={handleAuthorizeStep}
+                onDeny={handleDenyStep}
+                onCancel={handleAgentCancel}
+              />
+            )}
+            <Animated.View style={{ height: keyboardAnim.height }} />
+          </>
+        }
       />
 
       <KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
-        {agentRunAPI.agentRun && (
-          <AgentStatusPanel
-            agentRun={agentRunAPI.agentRun}
-            isLoading={agentRunAPI.isLoading}
-            onAuthorize={handleAuthorizeStep}
-            onDeny={handleDenyStep}
-            onCancel={handleAgentCancel}
-          />
-        )}
-
         <ChatInputBar
           onSend={handleSend}
           disabled={isSending}
