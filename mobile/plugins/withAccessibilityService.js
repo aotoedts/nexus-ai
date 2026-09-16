@@ -56,37 +56,52 @@ class CopilotAccessibilityService : AccessibilityService() {
     }
 
     fun dumpScreen(): String {
-        val root = rootInActiveWindow ?: return JSONArray().toString()
-        val result = JSONArray()
-        collectNodes(root, result)
-        return result.toString()
+        return try {
+            val root = rootInActiveWindow ?: return JSONArray().toString()
+            val result = JSONArray()
+            collectNodes(root, result, 0)
+            result.toString()
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro em dumpScreen", e)
+            JSONArray().toString()
+        }
     }
 
-    private fun collectNodes(node: AccessibilityNodeInfo, out: JSONArray) {
-        if (node.text != null || node.contentDescription != null || node.isClickable) {
-            val obj = JSONObject()
-            val bounds = android.graphics.Rect()
-            node.getBoundsInScreen(bounds)
-            obj.put("text", node.text?.toString() ?: "")
-            obj.put("desc", node.contentDescription?.toString() ?: "")
-            obj.put("className", node.className?.toString() ?: "")
-            obj.put("clickable", node.isClickable)
-            obj.put("x", bounds.centerX())
-            obj.put("y", bounds.centerY())
-            out.put(obj)
-        }
-        for (i in 0 until node.childCount) {
-            node.getChild(i)?.let { collectNodes(it, out) }
+    private fun collectNodes(node: AccessibilityNodeInfo, out: JSONArray, depth: Int) {
+        if (depth > 50) return
+        try {
+            if (node.text != null || node.contentDescription != null || node.isClickable) {
+                val obj = JSONObject()
+                val bounds = android.graphics.Rect()
+                node.getBoundsInScreen(bounds)
+                obj.put("text", node.text?.toString() ?: "")
+                obj.put("desc", node.contentDescription?.toString() ?: "")
+                obj.put("className", node.className?.toString() ?: "")
+                obj.put("clickable", node.isClickable)
+                obj.put("x", bounds.centerX())
+                obj.put("y", bounds.centerY())
+                out.put(obj)
+            }
+            for (i in 0 until node.childCount) {
+                node.getChild(i)?.let { collectNodes(it, out, depth + 1) }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao coletar nó", e)
         }
     }
 
     fun tap(x: Int, y: Int): Boolean {
-        val path = Path()
-        path.moveTo(x.toFloat(), y.toFloat())
-        val gesture = GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(path, 0, 100))
-            .build()
-        return dispatchGesture(gesture, null, null)
+        return try {
+            val path = Path()
+            path.moveTo(x.toFloat(), y.toFloat())
+            val gesture = GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, 100))
+                .build()
+            dispatchGesture(gesture, null, null)
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro em tap", e)
+            false
+        }
     }
 
     fun goHome(): Boolean {
@@ -98,44 +113,59 @@ class CopilotAccessibilityService : AccessibilityService() {
     }
 
     fun openApp(appName: String): Boolean {
-        val pm = packageManager
-        val apps = pm.getInstalledApplications(0)
-        val target = apps.firstOrNull { app ->
-            pm.getApplicationLabel(app).toString().equals(appName, ignoreCase = true)
-        } ?: apps.firstOrNull { app ->
-            pm.getApplicationLabel(app).toString().contains(appName, ignoreCase = true)
-        }
+        return try {
+            val pm = packageManager
+            val apps = pm.getInstalledApplications(0)
+            val target = apps.firstOrNull { app ->
+                pm.getApplicationLabel(app).toString().equals(appName, ignoreCase = true)
+            } ?: apps.firstOrNull { app ->
+                pm.getApplicationLabel(app).toString().contains(appName, ignoreCase = true)
+            }
 
-        if (target == null) {
-            Log.d(TAG, "App nao encontrado: $appName")
-            return false
-        }
+            if (target == null) {
+                Log.d(TAG, "App nao encontrado: $appName")
+                return false
+            }
 
-        val launchIntent = pm.getLaunchIntentForPackage(target.packageName) ?: return false
-        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        startActivity(launchIntent)
-        return true
+            val launchIntent = pm.getLaunchIntentForPackage(target.packageName) ?: return false
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(launchIntent)
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro em openApp", e)
+            false
+        }
     }
 
     fun typeText(text: String): Boolean {
-        val root = rootInActiveWindow ?: return false
-        val focused = findFocusedEditable(root) ?: return false
-        val arguments = Bundle()
-        arguments.putCharSequence(
-            AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
-            text
-        )
-        return focused.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
+        return try {
+            val root = rootInActiveWindow ?: return false
+            val focused = findFocusedEditable(root, 0) ?: return false
+            val arguments = Bundle()
+            arguments.putCharSequence(
+                AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                text
+            )
+            focused.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro em typeText", e)
+            false
+        }
     }
 
-    private fun findFocusedEditable(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+    private fun findFocusedEditable(node: AccessibilityNodeInfo, depth: Int): AccessibilityNodeInfo? {
+        if (depth > 50) return null
         if (node.isFocused && node.isEditable) {
             return node
         }
         for (i in 0 until node.childCount) {
-            node.getChild(i)?.let { child ->
-                val result = findFocusedEditable(child)
-                if (result != null) return result
+            try {
+                node.getChild(i)?.let { child ->
+                    val result = findFocusedEditable(child, depth + 1)
+                    if (result != null) return result
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Erro ao percorrer nó filho", e)
             }
         }
         return null
