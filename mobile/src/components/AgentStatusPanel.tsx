@@ -23,6 +23,7 @@ const getStatusColor = (status: AgentRunStatus) => {
     case 'running':
       return '#3B82F6';
     case 'awaiting_authorization':
+    case 'awaiting_device_action':
       return '#F59E0B';
     case 'completed':
       return '#10B981';
@@ -42,6 +43,8 @@ const getStatusLabel = (status: AgentRunStatus) => {
       return 'Executando...';
     case 'awaiting_authorization':
       return 'Aguardando Autorização';
+    case 'awaiting_device_action':
+      return 'Executando no dispositivo...';
     case 'completed':
       return 'Concluído';
     case 'error':
@@ -81,7 +84,7 @@ export const AgentStatusPanel: React.FC<AgentStatusPanelProps> = ({
     [agentRun.steps, agentRun.currentStepIndex]
   );
 
-  const isActive = ['planning', 'running', 'awaiting_authorization'].includes(agentRun.status);
+  const isActive = ['planning', 'running', 'awaiting_authorization', 'awaiting_device_action'].includes(agentRun.status);
 
   return (
     <View style={[styles.container, { borderLeftColor: statusColor }]}>
@@ -159,7 +162,7 @@ export const AgentStatusPanel: React.FC<AgentStatusPanelProps> = ({
         </ScrollView>
       </View>
 
-      {agentRun.pendingAuthorization && (
+        {agentRun.pendingAuthorization && agentRun.status === 'awaiting_authorization' && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>⚠️ Autorização Necessária</Text>
           <Text style={styles.authPrompt}>{agentRun.pendingAuthorization.prompt}</Text>
@@ -198,6 +201,17 @@ export const AgentStatusPanel: React.FC<AgentStatusPanelProps> = ({
           </View>
         </View>
       )}
+
+        {agentRun.pendingAuthorization && agentRun.status === 'awaiting_device_action' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📱 Ação no Dispositivo</Text>
+            <Text style={styles.authPrompt}>{agentRun.pendingAuthorization.prompt}</Text>
+            <View style={styles.statusBadge}>
+              <ActivityIndicator size="small" color="#F59E0B" />
+              <Text style={[styles.statusText, { color: '#F59E0B' }]}>Executando automaticamente...</Text>
+            </View>
+          </View>
+        )}
 
       {agentRun.status === 'completed' && agentRun.result && (
         <View style={styles.section}>
