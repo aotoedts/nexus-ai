@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { colors } from '../theme/colors';
 import { Alert } from 'react-native';
@@ -52,7 +53,7 @@ export function LoginScreen() {
       behavior="height"
     >
       <View style={styles.logoBlock}>
-        <View style={styles.logoIcon} />
+        <Image source={require('../../assets/icon.png')} style={styles.logoIcon} />
         <Text style={styles.brand}>Copiloto AI</Text>
         <Text style={styles.subtitle}>Seu assistente pessoal inteligente</Text>
       </View>
@@ -124,7 +125,7 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.ink[950], justifyContent: 'center', padding: 24 },
   logoBlock: { alignItems: 'center', marginBottom: 32 },
-  logoIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: colors.nexus[500], marginBottom: 12 },
+  logoIcon: { width: 64, height: 64, borderRadius: 16, marginBottom: 12 },
   brand: { color: colors.text.primary, fontSize: 24, fontWeight: '700' },
   subtitle: { color: colors.text.muted, fontSize: 13, marginTop: 4 },
   card: { backgroundColor: colors.ink[900], borderWidth: 1, borderColor: colors.ink[800], borderRadius: 16, padding: 20 },
