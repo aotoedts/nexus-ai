@@ -98,11 +98,18 @@ export class AskUserQuestionTool implements ITool {
   readonly name = 'ask_user_question';
   readonly description =
     'Faz uma pergunta ao usuario e aguarda a resposta antes de continuar a tarefa. ' +
-    'Use quando precisar de uma confirmacao ou informacao que so o usuario sabe (ex: qual video escolher, qual valor digitar).';
+    'Use quando precisar de uma confirmacao ou informacao que so o usuario sabe (ex: qual video escolher, qual valor digitar). ' +
+    'Se a pergunta tiver um numero pequeno de respostas possiveis (ex: sim/nao, escolher entre opcoes claras), ' +
+    'preencha "options" com essas alternativas para que o usuario possa tocar em vez de digitar.';
   readonly parametersSchema = {
     type: 'object',
     properties: {
       question: { type: 'string', description: 'A pergunta a ser exibida ao usuario' },
+      options: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Lista opcional de 2 a 5 respostas curtas para o usuario escolher tocando, em vez de digitar.',
+      },
     },
     required: ['question'],
   };

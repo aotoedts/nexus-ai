@@ -1,13 +1,15 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
 import { AgentRun, AgentRunStatus } from '../types/agent';
+import { colors } from '../theme/colors';
 
 interface AgentStatusPanelProps {
   agentRun: AgentRun;
@@ -15,23 +17,24 @@ interface AgentStatusPanelProps {
   onAuthorize?: () => void;
   onDeny?: () => void;
   onCancel?: () => void;
+  onAnswerQuestion?: (answer: string) => void;
 }
 
 const getStatusColor = (status: AgentRunStatus) => {
   switch (status) {
     case 'planning':
     case 'running':
-      return '#3B82F6';
+      return colors.signal[400];
     case 'awaiting_authorization':
     case 'awaiting_device_action':
       return '#F59E0B';
     case 'completed':
-      return '#10B981';
+      return colors.signal[400];
     case 'error':
     case 'cancelled':
-      return '#EF4444';
+      return colors.danger;
     default:
-      return '#6B7280';
+      return colors.text.muted;
   }
 };
 
@@ -76,34 +79,42 @@ export const AgentStatusPanel: React.FC<AgentStatusPanelProps> = ({
   onAuthorize,
   onDeny,
   onCancel,
+  onAnswerQuestion,
 }) => {
+  const [answerText, setAnswerText] = useState('');
   const statusColor = useMemo(() => getStatusColor(agentRun.status), [agentRun.status]);
   const statusLabel = useMemo(() => getStatusLabel(agentRun.status), [agentRun.status]);
-  const currentStep = useMemo(
-    () => agentRun.steps[agentRun.currentStepIndex],
-    [agentRun.steps, agentRun.currentStepIndex]
-  );
 
   const isActive = ['planning', 'running', 'awaiting_authorization', 'awaiting_device_action'].includes(agentRun.status);
+  const isQuestion = agentRun.status === 'awaiting_device_action' && agentRun.pendingAuthorization?.action === 'ask_user_question';
+  const questionOptions = (agentRun.pendingAuthorization?.details?.options as unknown as string[] | undefined)?.filter(
+    (o) => typeof o === 'string'
+  );
+
+  const handleSubmitAnswer = () => {
+    if (!answerText.trim()) return;
+    onAnswerQuestion?.(answerText.trim());
+    setAnswerText('');
+  };
 
   return (
-    <View style={[styles.container, { borderLeftColor: statusColor }]}>
+    <View style={[styles.bubble, { borderLeftColor: statusColor }]}>
       <View style={styles.header}>
         <View style={styles.statusBadge}>
           {(agentRun.status === 'planning' || agentRun.status === 'running') && (
             <ActivityIndicator size="small" color={statusColor} />
           )}
           {!(agentRun.status === 'planning' || agentRun.status === 'running') && (
-            <Text style={[styles.statusDot, { backgroundColor: statusColor }]} />
+            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
           )}
           <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
         </View>
-        
+
         {isActive && onCancel && (
           <TouchableOpacity
             onPress={onCancel}
             disabled={isLoading}
-            style={[styles.button, styles.cancelButton]}
+            style={styles.cancelButton}
           >
             <Text style={styles.cancelButtonText}>Cancelar</Text>
           </TouchableOpacity>
@@ -111,19 +122,15 @@ export const AgentStatusPanel: React.FC<AgentStatusPanelProps> = ({
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Objetivo</Text>
         <Text style={styles.objective}>{agentRun.objective}</Text>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Progresso</Text>
         <View style={styles.progressBar}>
           <View
             style={[
               styles.progressFill,
-              {
-                width: `${((agentRun.currentStepIndex + 1) / agentRun.steps.length) * 100}%`,
-              },
+              { width: `${((agentRun.currentStepIndex + 1) / Math.max(agentRun.steps.length, 1)) * 100}%` },
             ]}
           />
         </View>
@@ -132,41 +139,84 @@ export const AgentStatusPanel: React.FC<AgentStatusPanelProps> = ({
         </Text>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Passos</Text>
-        <ScrollView style={styles.stepsList} scrollEnabled={agentRun.steps.length > 5}>
-          {agentRun.steps.map((step, idx) => (
-            <View key={step.id} style={styles.stepItem}>
-              <Text style={styles.stepIcon}>{getStepStatusIcon(step.status)}</Text>
-              <View style={styles.stepContent}>
-                <Text
-                  style={[
-                    styles.stepTitle,
-                    idx === agentRun.currentStepIndex && styles.stepTitleActive,
-                  ]}
-                >
-                  {step.title}
-                </Text>
-                {step.description && (
-                  <Text style={styles.stepDescription}>{step.description}</Text>
-                )}
-                {step.result && (
-                  <Text style={styles.stepResult}>{step.result}</Text>
-                )}
-                {step.error && (
-                  <Text style={styles.stepError}>{step.error}</Text>
-                )}
+      {agentRun.steps.length > 0 && (
+        <View style={styles.section}>
+          <ScrollView style={styles.stepsList} scrollEnabled={agentRun.steps.length > 5}>
+            {agentRun.steps.map((step, idx) => (
+              <View key={step.id} style={styles.stepItem}>
+                <Text style={styles.stepIcon}>{getStepStatusIcon(step.status)}</Text>
+                <View style={styles.stepContent}>
+                  <Text
+                    style={[
+                      styles.stepTitle,
+                      idx === agentRun.currentStepIndex && styles.stepTitleActive,
+                    ]}
+                  >
+                    {step.title}
+                  </Text>
+                  {step.description && (
+                    <Text style={styles.stepDescription}>{step.description}</Text>
+                  )}
+                  {step.result && (
+                    <Text style={styles.stepResult}>{step.result}</Text>
+                  )}
+                  {step.error && (
+                    <Text style={styles.stepError}>{step.error}</Text>
+                  )}
+                </View>
               </View>
-            </View>
-          ))}
-        </ScrollView>
-      </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
-        {agentRun.pendingAuthorization && agentRun.status === 'awaiting_authorization' && (
+      {isQuestion && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>💬 {agentRun.pendingAuthorization?.prompt || 'O agente tem uma pergunta'}</Text>
+          {questionOptions && questionOptions.length > 0 ? (
+            <View style={styles.optionsContainer}>
+              {questionOptions.map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  onPress={() => onAnswerQuestion?.(option)}
+                  disabled={isLoading}
+                  style={styles.optionButton}
+                >
+                  <Text style={styles.optionButtonText}>{option}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.answerRow}>
+              <TextInput
+                style={styles.answerInput}
+                placeholder="Digite sua resposta..."
+                placeholderTextColor={colors.text.muted}
+                value={answerText}
+                onChangeText={setAnswerText}
+                editable={!isLoading}
+              />
+              <TouchableOpacity
+                onPress={handleSubmitAnswer}
+                disabled={isLoading || !answerText.trim()}
+                style={[styles.answerButton, (!answerText.trim() || isLoading) && styles.answerButtonDisabled]}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color={colors.ink[950]} />
+                ) : (
+                  <Text style={styles.answerButtonText}>Enviar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      )}
+
+      {agentRun.pendingAuthorization && agentRun.status === 'awaiting_authorization' && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>⚠️ Autorização Necessária</Text>
           <Text style={styles.authPrompt}>{agentRun.pendingAuthorization.prompt}</Text>
-          
+
           {agentRun.pendingAuthorization.details && (
             <View style={styles.authDetails}>
               {Object.entries(agentRun.pendingAuthorization.details).map(([key, value]) => (
@@ -177,7 +227,7 @@ export const AgentStatusPanel: React.FC<AgentStatusPanelProps> = ({
               ))}
             </View>
           )}
-          
+
           <View style={styles.authButtonsContainer}>
             <TouchableOpacity
               onPress={onAuthorize}
@@ -185,12 +235,12 @@ export const AgentStatusPanel: React.FC<AgentStatusPanelProps> = ({
               style={[styles.button, styles.authorizeButton]}
             >
               {isLoading ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color={colors.ink[950]} />
               ) : (
                 <Text style={styles.authorizeButtonText}>Autorizar</Text>
               )}
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               onPress={onDeny}
               disabled={isLoading}
@@ -202,16 +252,16 @@ export const AgentStatusPanel: React.FC<AgentStatusPanelProps> = ({
         </View>
       )}
 
-        {agentRun.pendingAuthorization && agentRun.status === 'awaiting_device_action' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>📱 Ação no Dispositivo</Text>
-            <Text style={styles.authPrompt}>{agentRun.pendingAuthorization.prompt}</Text>
-            <View style={styles.statusBadge}>
-              <ActivityIndicator size="small" color="#F59E0B" />
-              <Text style={[styles.statusText, { color: '#F59E0B' }]}>Executando automaticamente...</Text>
-            </View>
+      {agentRun.pendingAuthorization && agentRun.status === 'awaiting_device_action' && !isQuestion && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📱 Ação no Dispositivo</Text>
+          <Text style={styles.authPrompt}>{agentRun.pendingAuthorization.prompt}</Text>
+          <View style={styles.statusBadge}>
+            <ActivityIndicator size="small" color="#F59E0B" />
+            <Text style={[styles.statusText, { color: '#F59E0B' }]}>Executando automaticamente...</Text>
           </View>
-        )}
+        </View>
+      )}
 
       {agentRun.status === 'completed' && agentRun.result && (
         <View style={styles.section}>
@@ -224,13 +274,6 @@ export const AgentStatusPanel: React.FC<AgentStatusPanelProps> = ({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>❌ Erro</Text>
           <Text style={styles.errorMessage}>{agentRun.error.message}</Text>
-          {agentRun.error.details && (
-            <View style={styles.errorDetails}>
-              <Text style={styles.errorDetailsText}>
-                {JSON.stringify(agentRun.error.details, null, 2)}
-              </Text>
-            </View>
-          )}
         </View>
       )}
 
@@ -239,11 +282,6 @@ export const AgentStatusPanel: React.FC<AgentStatusPanelProps> = ({
           <Text style={styles.metadataText}>
             ⏱️ Duração: {(agentRun.totalDuration / 1000).toFixed(2)}s
           </Text>
-          {agentRun.tokenUsage && (
-            <Text style={styles.metadataText}>
-              🔤 Tokens: {agentRun.tokenUsage.input} entrada, {agentRun.tokenUsage.output} saída
-            </Text>
-          )}
         </View>
       )}
     </View>
@@ -251,20 +289,23 @@ export const AgentStatusPanel: React.FC<AgentStatusPanelProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
+  bubble: {
+    backgroundColor: colors.ink[800],
+    borderRadius: 16,
+    borderTopLeftRadius: 4,
+    borderWidth: 1,
+    borderColor: colors.ink[700],
     borderLeftWidth: 4,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 12,
     marginHorizontal: 12,
-    marginVertical: 8,
+    marginVertical: 6,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -277,101 +318,141 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   statusText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
-  button: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   cancelButton: {
-    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: colors.ink[900],
   },
   cancelButtonText: {
-    color: '#DC2626',
-    fontSize: 12,
+    color: colors.danger,
+    fontSize: 11,
     fontWeight: '600',
   },
   section: {
-    marginBottom: 12,
+    marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
+    color: colors.text.secondary,
+    marginBottom: 6,
   },
   objective: {
     fontSize: 14,
-    color: '#1F2937',
+    color: colors.text.primary,
     lineHeight: 20,
   },
   progressBar: {
-    height: 6,
-    backgroundColor: '#E5E7EB',
+    height: 5,
+    backgroundColor: colors.ink[900],
     borderRadius: 3,
     overflow: 'hidden',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.signal[400],
   },
   progressText: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: 11,
+    color: colors.text.muted,
   },
   stepsList: {
     maxHeight: 200,
   },
   stepItem: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 10,
+    gap: 8,
+    marginBottom: 8,
   },
   stepIcon: {
-    fontSize: 16,
-    width: 20,
+    fontSize: 14,
+    width: 18,
   },
   stepContent: {
     flex: 1,
   },
   stepTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.text.secondary,
   },
   stepTitleActive: {
-    color: '#3B82F6',
+    color: colors.signal[400],
     fontWeight: '600',
   },
   stepDescription: {
-    fontSize: 12,
-    color: '#9CA3AF',
+    fontSize: 11,
+    color: colors.text.muted,
     marginTop: 2,
   },
   stepResult: {
-    fontSize: 12,
-    color: '#10B981',
+    fontSize: 11,
+    color: colors.signal[400],
     marginTop: 4,
     fontStyle: 'italic',
   },
   stepError: {
-    fontSize: 12,
-    color: '#EF4444',
+    fontSize: 11,
+    color: colors.danger,
     marginTop: 4,
+  },
+  optionsContainer: {
+    gap: 8,
+  },
+  optionButton: {
+    backgroundColor: colors.ink[900],
+    borderWidth: 1,
+    borderColor: colors.nexus[500],
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  optionButtonText: {
+    color: colors.text.primary,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  answerRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  answerInput: {
+    flex: 1,
+    backgroundColor: colors.ink[900],
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 13,
+    color: colors.text.primary,
+  },
+  answerButton: {
+    backgroundColor: colors.signal[400],
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  answerButtonDisabled: {
+    backgroundColor: colors.ink[700],
+  },
+  answerButtonText: {
+    color: colors.ink[950],
+    fontSize: 13,
+    fontWeight: '600',
   },
   authPrompt: {
     fontSize: 13,
-    color: '#1F2937',
+    color: colors.text.primary,
     lineHeight: 18,
     marginBottom: 8,
   },
   authDetails: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.ink[900],
     borderRadius: 6,
     padding: 8,
     marginBottom: 12,
@@ -384,70 +465,60 @@ const styles = StyleSheet.create({
   authDetailKey: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.text.muted,
     marginBottom: 2,
   },
   authDetailValue: {
     fontSize: 12,
-    color: '#1F2937',
+    color: colors.text.primary,
   },
   authButtonsContainer: {
     flexDirection: 'row',
     gap: 8,
   },
-  authorizeButton: {
+  button: {
     flex: 1,
-    backgroundColor: '#10B981',
+    paddingVertical: 10,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  authorizeButton: {
+    backgroundColor: colors.signal[400],
   },
   authorizeButtonText: {
-    color: '#fff',
+    color: colors.ink[950],
     fontSize: 13,
     fontWeight: '600',
   },
   denyButton: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.ink[900],
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.ink[700],
   },
   denyButtonText: {
-    color: '#6B7280',
+    color: colors.text.secondary,
     fontSize: 13,
     fontWeight: '600',
   },
   result: {
     fontSize: 13,
-    color: '#10B981',
+    color: colors.signal[400],
     lineHeight: 18,
   },
   errorMessage: {
     fontSize: 13,
-    color: '#DC2626',
+    color: colors.danger,
     lineHeight: 18,
-    marginBottom: 8,
-  },
-  errorDetails: {
-    backgroundColor: '#fff',
-    borderRadius: 4,
-    padding: 8,
-    borderLeftWidth: 2,
-    borderLeftColor: '#EF4444',
-  },
-  errorDetailsText: {
-    fontSize: 11,
-    color: '#6B7280',
-    fontFamily: 'monospace',
   },
   metadata: {
-    backgroundColor: '#fff',
-    borderRadius: 6,
-    padding: 8,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.ink[700],
+    paddingTop: 8,
+    marginTop: 4,
   },
   metadataText: {
     fontSize: 11,
-    color: '#6B7280',
-    marginBottom: 4,
+    color: colors.text.muted,
   },
 });
