@@ -130,6 +130,19 @@ class CopilotAccessibilityService : AccessibilityService() {
             val launchIntent = pm.getLaunchIntentForPackage(target.packageName) ?: return false
             launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(launchIntent)
+
+            // Espera o app alvo realmente assumir a tela antes de retornar sucesso,
+            // evitando que o proximo passo (dump_screen/tap/type) leia a tela antiga
+            // ainda em transicao.
+            var waited = 0
+            while (waited < 3000) {
+                Thread.sleep(150)
+                waited += 150
+                val currentPackage = rootInActiveWindow?.packageName?.toString()
+                if (currentPackage == target.packageName) {
+                    break
+                }
+            }
             true
         } catch (e: Exception) {
             Log.e(TAG, "Erro em openApp", e)

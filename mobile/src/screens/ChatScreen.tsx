@@ -19,7 +19,8 @@ import { AccessibilityBridge } from '../native/AccessibilityBridge';
 import { AgentStatusPanel } from '../components/AgentStatusPanel';
 import { AgentToggle } from '../components/AgentToggle';
 import { MessageBubble } from '../components/MessageBubble';
-import { KeyboardStickyView, useKeyboardAnimation } from 'react-native-keyboard-controller';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { ChatInputBar } from '../components/ChatInputBar';
 import { HistoryDrawer } from '../components/HistoryDrawer';
 import { colors } from '../theme/colors';
@@ -61,7 +62,7 @@ export const ChatScreen: React.FC = () => {
   const [agentObjective, setAgentObjective] = useState('');
 
   const listRef = useRef<FlatList>(null);
-  const keyboardAnim = useKeyboardAnimation();
+  const headerHeight = useHeaderHeight();
 
   // Clear agent when changing conversation
   useEffect(() => {
@@ -295,6 +296,7 @@ export const ChatScreen: React.FC = () => {
         </Pressable>
       </Modal>
 
+      <KeyboardAvoidingView style={styles.flex} behavior="padding" keyboardVerticalOffset={headerHeight}>
       <FlatList
         ref={listRef}
         data={messages}
@@ -315,12 +317,10 @@ export const ChatScreen: React.FC = () => {
                 onAnswerQuestion={handleAnswerQuestion}
               />
             )}
-            <Animated.View style={{ height: keyboardAnim.height }} />
           </>
         }
       />
 
-      <KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
         <ChatInputBar
           onSend={handleSend}
           disabled={isSending}
@@ -334,7 +334,7 @@ export const ChatScreen: React.FC = () => {
             />
           }
         />
-      </KeyboardStickyView>
+      </KeyboardAvoidingView>
 
       <HistoryDrawer
         visible={historyVisible}
